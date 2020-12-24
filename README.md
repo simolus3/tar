@@ -1,5 +1,7 @@
 # tar
 
+![Build status](https://github.com/simolus3/tar/workflows/build/badge.svg)
+
 This package provides stream-based readers and writers for tar files.
 
 When working with large tar files, this library consumes considerably less memory

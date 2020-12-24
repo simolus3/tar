@@ -9,6 +9,27 @@ import 'entry.dart';
 
 import 'package:synchronized/synchronized.dart';
 
+class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
+  const _WritingTransformer();
+
+  @override
+  Stream<List<int>> bind(Stream<Entry> stream) {
+    // sync because the controller proxies another stream
+    final controller = StreamController<List<int>>(sync: true);
+    controller.onListen = () {
+      stream.pipe(WritingSink(controller));
+    };
+
+    return controller.stream;
+  }
+}
+
+/// A stream transformer writing tar entries as byte streams.
+///
+/// When piping the resulting stream into a [StreamConsumer], consider using
+/// [WritingSink] directly.
+const writer = _WritingTransformer();
+
 /// A sink emitting encoded tar files.
 ///
 /// For instance, you can use this to write a tar file:
@@ -36,6 +57,7 @@ import 'package:synchronized/synchronized.dart';
 /// be buffered once, which decreases performance.
 ///
 /// See also:
+///  - [writer], a stream transformer using this sink
 ///  - [StreamSink]
 class WritingSink extends StreamSink<Entry> {
   final StreamSink<List<int>> _output;

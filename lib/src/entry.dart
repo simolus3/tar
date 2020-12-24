@@ -22,6 +22,9 @@ class Entry extends Stream<List<int>> {
   /// entry.
   String get name => header.name;
 
+  /// The type of tar entry (file, directory, etc.).
+  FileType get type => header.type;
+
   /// The content size of this entry, in bytes.
   int get size => header.size;
 
