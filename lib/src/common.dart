@@ -14,6 +14,7 @@ const gnuTypeLongLinkName = $K;
 const globalExtended = $g;
 const extendedHeader = $x;
 const blockSize = 512;
+const blockSizeLog2 = 9;
 
 const paxHeaderLinkName = 'linkpath';
 const paxHeaderPath = 'path';

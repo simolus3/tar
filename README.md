@@ -5,7 +5,7 @@
 This package provides stream-based readers and writers for tar files.
 
 When working with large tar files, this library consumes considerably less memory
-than [package:archive](https://pub.dev/packages/archive).
+than [package:archive](https://pub.dev/packages/archive), although it is slightly slower.
 
 ## Reading
 

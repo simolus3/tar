@@ -86,12 +86,14 @@ class WritingSink extends StreamSink<Entry> {
     _pendingOperations++;
     try {
       await _lock.synchronized(work);
+    } catch (e, s) {
+      _output.addError(e, s);
     } finally {
       _pendingOperations--;
     }
 
     if (_closed && _pendingOperations == 0) {
-      _done.complete();
+      _done.complete(_output.close());
     }
   }
 
@@ -229,7 +231,6 @@ class WritingSink extends StreamSink<Entry> {
         _output.add(empty);
         _output.add(empty);
       });
-      await _output.close();
     }
 
     return done;

@@ -44,8 +44,13 @@ const reader = _TarStreamTransformer();
 class _BoundTarStream {
   // sync because we'll only add events in response to events that we receive.
   final _controller = StreamController<Entry>(sync: true);
+  // We don't propagate pauses/resumes from the global [_controller] when we're
+  // reading an entry, so we have to remember the state to do that later.
   var _controllerState = _ControllerState.idle;
+  // Whether we're skipping input to get to the end of a tar block.
   bool _isWaitingForBlockToFinish = false;
+  // Whether we've seen the end of the tar stream, indicated by two empty
+  // blocks.
   bool _hasReachedEnd = false;
 
   StreamController<Uint8List>? _entryController;
@@ -54,6 +59,7 @@ class _BoundTarStream {
   // subscription as necessary.
   late StreamSubscription<List<int>> _subscription;
 
+  // Headers used for file names longer than 100 chars
   final Map<String, String> _globalPaxHeader = {};
   final Map<String, String> _localPaxHeader = {};
   late final Map<String, String> _effectivePaxHeader =
@@ -65,7 +71,11 @@ class _BoundTarStream {
   // processing a special file type (e.g. extended headers), this buffer will
   // store the content of that file.
   Uint8List _buffer = Uint8List(blockSize);
+  // The amount of bytes to read before we switch states (e.g. from headers to
+  // entries to vice-versa)
   int _remainingBytes = blockSize;
+  // The offset in the current block, used to track how much data to skip when
+  // we go to the next block.
   int _offsetInBlock = 0;
 
   Stream<Entry> get stream => _controller.stream;
@@ -127,6 +137,7 @@ class _BoundTarStream {
     }
   }
 
+  /// Switches to a state in which we're skipping padding, if necessary.
   void _skipPadding() {
     if (_offsetInBlock != 0) {
       _remainingBytes = blockSize - _offsetInBlock;
@@ -141,7 +152,7 @@ class _BoundTarStream {
       final result = chunk.sublist(offset, offset + amount);
       _remainingBytes -= amount;
       offset += amount;
-      _offsetInBlock = (_offsetInBlock + amount) % 512;
+      _offsetInBlock = (_offsetInBlock + amount).toUnsigned(blockSizeLog2);
 
       return result;
     }
@@ -170,7 +181,7 @@ class _BoundTarStream {
             throw AssertionError('Only headers are special types');
         }
 
-        // Resume by parsing the next header
+        // Resume by parsing the next header, which is then a regular one
         _skipPadding();
         _processingSpecialType = null;
         if (_buffer.length != blockSize) _buffer = Uint8List(blockSize);
