@@ -136,6 +136,10 @@ class WritingSink extends StreamSink<Entry> {
       unameBytes = unameBytes.sublist(0, 31);
     }
 
+    if (size > maxIntFor12CharOct) {
+      paxHeader[paxHeaderSize] = ascii.encode(size.toString());
+    }
+
     if (paxHeader.isNotEmpty) {
       await _writePaxHeader(paxHeader);
     }

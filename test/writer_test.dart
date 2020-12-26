@@ -46,4 +46,24 @@ void main() {
       ),
     );
   });
+
+  test('writes huge files', () async {
+    const oneMbSize = 1024 * 1024;
+    const tenGbSize = oneMbSize * 1024 * 10;
+
+    final oneMb = Uint8List(oneMbSize);
+    const count = tenGbSize ~/ oneMbSize;
+
+    final entry = tar.Entry(
+      tar.Header(
+        name: 'file.blob',
+        mode: 0,
+        size: tenGbSize,
+      ),
+      Stream<List<int>>.fromIterable(Iterable.generate(count, (i) => oneMb)),
+    );
+
+    final proc = await writeToTar(['--list', '--verbose'], Stream.value(entry));
+    expect(proc.lines, emits(contains(tenGbSize.toString())));
+  });
 }

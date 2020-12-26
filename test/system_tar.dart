@@ -7,7 +7,17 @@ import 'dart:io';
 import 'package:tar/tar.dart' as tar;
 
 Future<Process> startTar(List<String> args) {
-  return Process.start('tar', args);
+  return Process.start('tar', args).then((proc) {
+    // Attach stderr listener, we don't expect any output on that
+    late List<int> data;
+    final sink = ByteConversionSink.withCallback((result) => data = result);
+    proc.stderr.forEach(sink.add).then((_) {
+      sink.close();
+      const LineSplitter().convert(utf8.decode(data)).forEach(stderr.writeln);
+    });
+
+    return proc;
+  });
 }
 
 Future<Process> writeToTar(List<String> args, Stream<tar.Entry> entries) async {
