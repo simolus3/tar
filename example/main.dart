@@ -23,9 +23,10 @@ Future<void> main() async {
   await Stream<tar.Entry>.value(
     tar.MemoryEntry(
       tar.Header(
-        name: 'hello_dart.txt',
-        mode: int.parse('644', radix: 8),
-      ),
+          name: 'hello_dart.txt',
+          mode: int.parse('644', radix: 8),
+          userName: 'Dart',
+          groupName: 'Dartgroup'),
       utf8.encode('Hello world'),
     ),
   )

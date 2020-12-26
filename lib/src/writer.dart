@@ -110,17 +110,30 @@ class WritingSink extends StreamSink<Entry> {
 
     var nameBytes = utf8.encode(header.name);
     var linkBytes = utf8.encode(header.linkName ?? '');
+    var gnameBytes = utf8.encode(header.groupName ?? '');
+    var unameBytes = utf8.encode(header.userName ?? '');
 
     // We only get 100 chars for the name and link name. If they are longer, we
-    // have to insert an entry just to store the names.
+    // have to insert an entry just to store the names. Some tar implementations
+    // expect them to be zero-terminated, so use 99 chars to be safe.
     final paxHeader = <String, List<int>>{};
-    if (nameBytes.length > 100) {
-      paxHeader['path'] = nameBytes;
-      nameBytes = nameBytes.sublist(0, 100);
+    if (nameBytes.length > 99) {
+      paxHeader[paxHeaderPath] = nameBytes;
+      nameBytes = nameBytes.sublist(0, 99);
     }
-    if (linkBytes.length > 100) {
-      paxHeader['linkpath'] = linkBytes;
-      linkBytes = linkBytes.sublist(0, 100);
+    if (linkBytes.length > 99) {
+      paxHeader[paxHeaderLinkName] = linkBytes;
+      linkBytes = linkBytes.sublist(0, 99);
+    }
+
+    // It's even worse for users and groups, where we only get 31 usable chars.
+    if (gnameBytes.length > 31) {
+      paxHeader[paxHeaderGname] = gnameBytes;
+      gnameBytes = gnameBytes.sublist(0, 31);
+    }
+    if (unameBytes.length > 31) {
+      paxHeader[paxHeaderUname] = unameBytes;
+      unameBytes = unameBytes.sublist(0, 31);
     }
 
     if (paxHeader.isNotEmpty) {
@@ -137,7 +150,9 @@ class WritingSink extends StreamSink<Entry> {
       ..[156] = header.type.char
       ..setAll(157, linkBytes)
       ..setAll(257, magic)
-      ..setUint(0, 263, 2)
+      ..setUint(0, 263, 2) // version
+      ..setAll(265, unameBytes)
+      ..setAll(297, gnameBytes)
       // To calculate the checksum, we first fill the checksum range with spaces
       ..setAll(148, List.filled(8, $space));
 

@@ -27,6 +27,8 @@ void main() {
         size: 0,
         uid: 3,
         gid: 4,
+        userName: 'my_user',
+        groupName: 'long group that exceeds 32 characters',
         lastModified: date,
       ),
       Uint8List(0),
@@ -38,7 +40,7 @@ void main() {
       emits(
         allOf(
           contains('-rwxr--r--'),
-          contains('3/4'),
+          contains('my_user/long group that exceeds 32 characters'),
           contains('2020-12-30 12:34'),
         ),
       ),

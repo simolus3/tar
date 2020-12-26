@@ -18,6 +18,8 @@ const blockSizeLog2 = 9;
 
 const paxHeaderLinkName = 'linkpath';
 const paxHeaderPath = 'path';
+const paxHeaderUname = 'uname';
+const paxHeaderGname = 'gname';
 
 extension ToTyped on List<int> {
   Uint8List asUint8List() {
