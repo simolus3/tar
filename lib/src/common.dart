@@ -25,6 +25,22 @@ const paxHeaderUname = 'uname';
 const paxHeaderGname = 'gname';
 const paxHeaderSize = 'size';
 
+/// These are the pax headers considered when reading tar files.
+///
+/// Other pax headers are dropped in the reader to avoid memory-based DOS
+/// attacks. We already limit the size of a headers file by default, but an
+/// attacker could provide many small global header files with bogus keys, which
+/// we'd all have to store.
+/// With this approach, we can ensure that the reader's buffer will have an
+/// upper bound of `(supportedPaxHeaders.length + 1) * maxHeaderSize`.
+const supportedPaxHeaders = {
+  paxHeaderLinkName,
+  paxHeaderPath,
+  paxHeaderUname,
+  paxHeaderGname,
+  paxHeaderSize,
+};
+
 const defaultSpecialLength = blockSize * 2;
 
 extension ToTyped on List<int> {

@@ -350,6 +350,7 @@ class _BoundTarStream {
         keyBuffer.writeCharCode(currentChar);
         currentChar = _buffer[++offset];
       }
+      final key = keyBuffer.toString();
       // Skip over the equals sign
       offset++;
 
@@ -358,7 +359,11 @@ class _BoundTarStream {
       final lengthOfValue = length - 3 - keyBuffer.length - charsInLength;
       final value =
           utf8.decode(_buffer.sublist(offset, offset + lengthOfValue));
-      map[keyBuffer.toString()] = value;
+      // Ignore unrecognized headers to avoid unbounded growth of the global
+      // header map.
+      if (supportedPaxHeaders.contains(key)) {
+        map[key] = value;
+      }
 
       // Skip over value and trailing newline
       offset += lengthOfValue + 1;
