@@ -1,4 +1,4 @@
-## 0.2.0-dev
+## 0.1.0-nullsafety.1
 
 - Support writing user and group names
 - Better support for PAX-headers and large files
