@@ -6,13 +6,19 @@ import 'package:test/test.dart';
 import 'package:tar/tar.dart' as tar;
 
 void main() {
-  test('POSIX.1-2001', () => _testWith('reference/posix.tar'));
+  group('POSIX.1-2001', () {
+    test('reads files', () => _testWith('reference/posix.tar'));
+
+    test('reads large files',
+        () => _testLargeFile('reference/headers/large_posix.tar'));
+  });
+
   test('(new) GNU Tar format', () => _testWith('reference/gnu.tar'));
   test('ustar', () => _testWith('reference/ustar.tar'));
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
   test('does not read large headers', () {
-    final tarEntries = File('reference/evil_large_header.tar')
+    final tarEntries = File('reference/headers/evil_large_header.tar')
         .openRead()
         .transform(tar.reader);
 
@@ -48,4 +54,11 @@ Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
         'file_with_a_path_length_of_more_than_100_characters_so_that_it_gets_split.txt']!;
     expect(utf8.decode(longName.data), 'ditto');
   }
+}
+
+void _testLargeFile(String file) {
+  final entries = File(file).openRead().transform(tar.reader);
+
+  expect(entries,
+      emits(isA<tar.Entry>().having((e) => e.size, 'size', 9663676416)));
 }
