@@ -18,6 +18,19 @@ void main() {
 
     expect(tarEntries, emitsError(isStateError));
   });
+
+  test('throws on unexpected EOF', () {
+    final tarEntries =
+        File('reference/bad_truncated.tar').openRead().transform(tar.reader);
+
+    expect(
+      tarEntries,
+      emitsError(
+        isA<StateError>()
+            .having((e) => e.message, 'message', contains('Unexpected end')),
+      ),
+    );
+  });
 }
 
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {

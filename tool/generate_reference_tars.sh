@@ -10,3 +10,6 @@ tar --create --verbose --file=reference/v7.tar --owner=1 --group=2 --format=v7 r
 
 echo "--format=ustar"
 tar --create --verbose --file=reference/ustar.tar --owner=1 --group=2 --format=ustar reference/res/
+
+echo "truncated --format=posix"
+tar --create --file - --owner=1 --group=2 --format=posix reference/res/ | head --bytes=1k > reference/bad_truncated.tar
