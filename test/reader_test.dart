@@ -10,6 +10,14 @@ void main() {
   test('(new) GNU Tar format', () => _testWith('reference/gnu.tar'));
   test('ustar', () => _testWith('reference/ustar.tar'));
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
+
+  test('does not read large headers', () {
+    final tarEntries = File('reference/evil_large_header.tar')
+        .openRead()
+        .transform(tar.reader);
+
+    expect(tarEntries, emitsError(isStateError));
+  });
 }
 
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {

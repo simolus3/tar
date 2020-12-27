@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -24,6 +25,8 @@ const paxHeaderUname = 'uname';
 const paxHeaderGname = 'gname';
 const paxHeaderSize = 'size';
 
+const defaultSpecialLength = blockSize * 2;
+
 extension ToTyped on List<int> {
   Uint8List asUint8List() {
     // Flow typing doesn't work on this
@@ -38,4 +41,63 @@ String readZeroTerminated(Uint8List data, int offset, int maxLength) {
   if (contentLength.isNegative) contentLength = maxLength;
 
   return utf8.decode(view.sublist(0, contentLength));
+}
+
+/// Extended PAX headers in the POSIX tar format.
+class PaxHeaders extends UnmodifiableMapBase<String, String> {
+  final Map<String, String> _globalHeaders = {};
+  Map<String, String> _localHeaders = {};
+
+  /// The size of the next tar entry as stored in these headers.
+  int? get size {
+    final sizeStr = this[paxHeaderSize];
+    return sizeStr != null ? int.parse(sizeStr) : null;
+  }
+
+  /// The file name of the next tar entry.
+  String? get fileName => this[paxHeaderPath];
+  set fileName(String? name) => _setOrRemove(paxHeaderPath, name);
+
+  /// The link name of the next tar entry
+  String? get linkName => this[paxHeaderLinkName];
+  set linkName(String? name) => _setOrRemove(paxHeaderLinkName, name);
+
+  void _setOrRemove(String key, String? value) {
+    if (value == null) {
+      _localHeaders.remove(key);
+    } else {
+      _localHeaders[key] = value;
+    }
+  }
+
+  /// Applies new global PAX-headers from the map.
+  ///
+  /// The [headers] will replace global headers with the same key, but leave
+  /// others intact.
+  void newGlobals(Map<String, String> headers) {
+    _globalHeaders.addAll(headers);
+  }
+
+  /// Applies new local PAX-headers from the map.
+  ///
+  /// This replaces all currently active local headers.
+  void newLocals(Map<String, String> headers) {
+    _localHeaders = headers;
+  }
+
+  /// Clears local headers.
+  ///
+  /// This is used by the reader after a file has ended, as local headers only
+  /// apply to the next entry.
+  void clearLocals() {
+    _localHeaders = {};
+  }
+
+  @override
+  String? operator [](Object? key) {
+    return _globalHeaders[key] ?? _localHeaders[key];
+  }
+
+  @override
+  Iterable<String> get keys => {..._globalHeaders.keys, ..._localHeaders.keys};
 }

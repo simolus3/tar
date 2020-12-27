@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -9,12 +8,46 @@ import 'package:charcode/ascii.dart';
 import 'common.dart';
 import 'entry.dart';
 
-class _TarStreamTransformer extends StreamTransformerBase<List<int>, Entry> {
-  const _TarStreamTransformer();
+/// A stream transformer turning byte-streams into a stream of tar entries.
+///
+/// You can iterate over entries in a tar archive like this:
+///
+/// ```dart
+/// import 'dart:io';
+/// import 'package:tar/tar.dart' as tar;
+///
+/// Future<void> main() async {
+///   final tarFile = File('file.tar.gz')
+///        .openRead()
+///        // use gzip.decoder if you're reading .tar.gz files
+///        .transform(gzip.decoder)
+///        .transform(const tar.Reader());
+///
+///  await for (final entry in tarFile) {
+///    print(entry.name);
+///    print(await entry.transform(utf8.decoder).first);
+///  }
+/// }
+/// ```
+class Reader extends StreamTransformerBase<List<int>, Entry> {
+  /// The maximum length for special files, such as extended PAX headers or long
+  /// file names in GNU-tar.
+  ///
+  /// The content of those files has to be buffered in the reader until it
+  /// reaches the next entry. To avoid memory-based denial-of-service attacks
+  /// with large headers, this library only allows 1 KiB by default.
+  /// This limit can be increased, which is rarely needed.
+  final int maxSpecialFileLength;
+
+  /// Creates a reader with a custom [maxSpecialFileLength].
+  ///
+  /// When using the default value, consider using the regular [reader] instead.
+  const Reader({this.maxSpecialFileLength = defaultSpecialLength})
+      : assert(maxSpecialFileLength >= blockSize);
 
   @override
   Stream<Entry> bind(Stream<List<int>> stream) {
-    return _BoundTarStream(stream).stream;
+    return _BoundTarStream(stream, maxSpecialFileLength).stream;
   }
 }
 
@@ -39,7 +72,7 @@ class _TarStreamTransformer extends StreamTransformerBase<List<int>, Entry> {
 ///  }
 /// }
 /// ```
-const reader = _TarStreamTransformer();
+const reader = Reader();
 
 class _BoundTarStream {
   // sync because we'll only add events in response to events that we receive.
@@ -59,17 +92,16 @@ class _BoundTarStream {
   // subscription as necessary.
   late StreamSubscription<List<int>> _subscription;
 
-  // Headers used for file names longer than 100 chars
-  final Map<String, String> _globalPaxHeader = {};
-  final Map<String, String> _localPaxHeader = {};
-  late final Map<String, String> _effectivePaxHeader =
-      _FallbackMapView(_globalPaxHeader, _localPaxHeader);
+  /// Extended PAX headers used for long names.
+  ///
+  /// See also: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
+  final PaxHeaders _paxHeaders = PaxHeaders();
 
   FileType? _processingSpecialType;
 
   // When we're parsing a header, this stores collected header values. When
   // processing a special file type (e.g. extended headers), this buffer will
-  // store the content of that file.
+  // store the content of that file. We start by reading a header.
   Uint8List _buffer = Uint8List(blockSize);
   // The amount of bytes to read before we switch states (e.g. from headers to
   // entries to vice-versa)
@@ -78,9 +110,11 @@ class _BoundTarStream {
   // we go to the next block.
   int _offsetInBlock = 0;
 
+  final int maxSpecialTypeLength;
+
   Stream<Entry> get stream => _controller.stream;
 
-  _BoundTarStream(Stream<List<int>> stream) {
+  _BoundTarStream(Stream<List<int>> stream, this.maxSpecialTypeLength) {
     _controller
       ..onPause = () {
         _setStateAndPropagate(_ControllerState.paused);
@@ -157,25 +191,23 @@ class _BoundTarStream {
       return result;
     }
 
-    void readExtendedHeader(int availableBytes) {
+    void readSpecialFile(int availableBytes) {
       _buffer.setAll(_buffer.length - _remainingBytes, read(availableBytes));
 
       if (_remainingBytes == 0) {
         switch (_processingSpecialType) {
           case FileType.extendedHeader:
-            _localPaxHeader
-              ..clear()
-              ..addAll(_readPaxHeader());
+            _paxHeaders.newLocals(_readPaxHeader());
             break;
           case FileType.globalExtended:
-            _globalPaxHeader..addAll(_readPaxHeader());
+            _paxHeaders.newGlobals(_readPaxHeader());
             break;
           // Fake a pax header for these two, they're otherwise equivalent
           case FileType.gnuLongLinkName:
-            _localPaxHeader[paxHeaderLinkName] = _readZeroTerminated();
+            _paxHeaders.linkName = _readZeroTerminated();
             break;
           case FileType.gnuLongName:
-            _localPaxHeader[paxHeaderPath] = _readZeroTerminated();
+            _paxHeaders.fileName = _readZeroTerminated();
             break;
           default:
             throw AssertionError('Only headers are special types');
@@ -199,11 +231,7 @@ class _BoundTarStream {
           return;
         }
 
-        final header = Header.fromBlock(
-          _buffer,
-          fileName: _effectivePaxHeader[paxHeaderPath],
-          linkName: _effectivePaxHeader[paxHeaderLinkName],
-        );
+        final header = Header.fromBlock(_buffer, headers: _paxHeaders);
         final type = header.type;
         if (!_transparentFileTypes.contains(type)) {
           final entry = _entryController = StreamController(
@@ -217,6 +245,16 @@ class _BoundTarStream {
           _remainingBytes = header.size;
           _controller.add(Entry(header, entry.stream));
         } else {
+          final length = header.size;
+          if (length > maxSpecialTypeLength) {
+            _controller.addError(StateError(
+              'This tar file contains an extended PAX-header with a length of '
+              '$length bytes. Since these headers have to be buffered, this '
+              'tar reader permits a maximum length of $maxSpecialTypeLength. \n'
+              'You can increase this limit when constructing a tar.Reader().',
+            ));
+          }
+
           _remainingBytes = header.size;
           _buffer = Uint8List(header.size);
           _processingSpecialType = type;
@@ -249,7 +287,7 @@ class _BoundTarStream {
       final availableBytes = min(_remainingBytes, remainingInChunk);
 
       if (_processingSpecialType != null) {
-        readExtendedHeader(availableBytes);
+        readSpecialFile(availableBytes);
       } else {
         final currentEntry = _entryController;
         if (currentEntry == null) {
@@ -269,7 +307,7 @@ class _BoundTarStream {
             _skipPadding();
             _remainingBytes = blockSize;
 
-            _localPaxHeader.clear();
+            _paxHeaders.clearLocals();
           }
         }
       }
@@ -356,19 +394,4 @@ extension on Uint8List {
     }
     return true;
   }
-}
-
-class _FallbackMapView<K, V> extends UnmodifiableMapBase<K, V> {
-  final Map<K, V> first;
-  final Map<K, V> fallback;
-
-  _FallbackMapView(this.first, this.fallback);
-
-  @override
-  V? operator [](Object? key) {
-    return first[key] ?? fallback[key];
-  }
-
-  @override
-  Iterable<K> get keys => <K>{...first.keys, ...fallback.keys};
 }

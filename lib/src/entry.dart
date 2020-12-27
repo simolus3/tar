@@ -126,18 +126,25 @@ class Header {
     DateTime? lastModified,
   }) : lastModified = lastModified ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-  factory Header.fromBlock(Uint8List data,
-      {String? fileName, String? linkName}) {
+  /// Reads a tar header from a header block.
+  ///
+  /// The header block must be stored in [data] and have a byte-length of 512.
+  /// The optional [paxHeaders] map can be used to read some fields from
+  /// extended PAX-headers.
+  factory Header.fromBlock(
+    Uint8List data, {
+    PaxHeaders? headers,
+  }) {
     if (data.length != blockSize) {
       throw ArgumentError.value(
           data, 'data', 'Must have a length of $blockSize');
     }
 
-    var name = fileName ?? readZeroTerminated(data, 0, 100);
+    var name = headers?.fileName ?? readZeroTerminated(data, 0, 100);
     final mode = _readOctInt(data, 100, 8);
     final uid = _readOctInt(data, 108, 8);
     final gid = _readOctInt(data, 116, 8);
-    final size = _readOctInt(data, 124, 12);
+    final size = headers?.size ?? _readOctInt(data, 124, 12);
     final mtime =
         DateTime.fromMillisecondsSinceEpoch(_readOctInt(data, 136, 12) * 1000);
     final checksum = _readOctInt(data, 148, 8);
@@ -152,18 +159,18 @@ class Header {
           gnuTypeLongName: FileType.gnuLongName,
         }[data[156]] ??
         FileType.unsupported;
-    final nameLink = linkName ?? readZeroTerminated(data, 157, 100);
+    final nameLink = headers?.linkName ?? readZeroTerminated(data, 157, 100);
 
     var version = 0;
-    String? uname;
-    String? gname;
+    var uname = headers?[paxHeaderUname];
+    var gname = headers?[paxHeaderGname];
 
     if (data.hasUstarMagic) {
       version = _readOctInt(data, 263, 2);
-      uname = readZeroTerminated(data, 265, 32);
-      gname = readZeroTerminated(data, 297, 32);
+      uname ??= readZeroTerminated(data, 265, 32);
+      gname ??= readZeroTerminated(data, 297, 32);
 
-      if (fileName == null) {
+      if (headers == null || !headers.containsKey(paxHeaderPath)) {
         // Try to append a prefix if the file name wasn't enforced
         final prefix = readZeroTerminated(data, 345, 155);
         if (prefix.isNotEmpty) {

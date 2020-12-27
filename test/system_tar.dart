@@ -5,9 +5,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:tar/tar.dart' as tar;
+import 'package:test/test.dart';
 
 Future<Process> startTar(List<String> args) {
   return Process.start('tar', args).then((proc) {
+    expect(proc.exitCode, completion(0));
+
     // Attach stderr listener, we don't expect any output on that
     late List<int> data;
     final sink = ByteConversionSink.withCallback((result) => data = result);
