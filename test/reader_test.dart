@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
@@ -46,13 +47,13 @@ Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
   };
 
   final testEntry = entries['reference/res/test.txt']!;
-  expect(utf8.decode(testEntry.data), 'Test file content!\n');
+  expect(utf8.decode(testEntry), 'Test file content!\n');
 
   if (!ignoreLongFileName) {
     final longName = entries['reference/res/'
         'subdirectory_with_a_long_name/'
         'file_with_a_path_length_of_more_than_100_characters_so_that_it_gets_split.txt']!;
-    expect(utf8.decode(longName.data), 'ditto');
+    expect(utf8.decode(longName), 'ditto');
   }
 }
 
@@ -61,4 +62,12 @@ void _testLargeFile(String file) {
 
   expect(entries,
       emits(isA<tar.Entry>().having((e) => e.size, 'size', 9663676416)));
+}
+
+extension on Stream<List<int>> {
+  Future<Uint8List> readFully() async {
+    final builder = BytesBuilder();
+    await forEach(builder.add);
+    return builder.takeBytes();
+  }
 }

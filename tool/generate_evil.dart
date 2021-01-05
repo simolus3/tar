@@ -6,7 +6,7 @@ import 'package:tar/tar.dart' as tar;
 Future<void> main() async {
   // Generate tar file claiming to have a 7 GB header
   await Stream<tar.Entry>.fromIterable([
-    tar.MemoryEntry(
+    tar.Entry.data(
       tar.Header(
         name: 'PaxHeader',
         mode: 0,
@@ -15,7 +15,7 @@ Future<void> main() async {
       ),
       Uint8List(0),
     ),
-    tar.MemoryEntry(
+    tar.Entry.data(
       tar.Header(
         name: 'test.txt',
         mode: 0,

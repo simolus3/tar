@@ -10,9 +10,6 @@ import 'common.dart';
 /// Usually, tar entries are read from a stream, and they're bound to the stream
 /// from which they've been read. This means that they can only be read once,
 /// and that only one [Entry] is active at a time.
-/// A [MemoryEntry] is stored entirely in memory, it can be listened to multiple
-/// times. To read turn a regular entry into a [MemoryEntry], use
-/// [Entry.readFully].
 class Entry extends Stream<List<int>> {
   /// The parsed [Header] of this tar entry.
   final Header header;
@@ -33,37 +30,17 @@ class Entry extends Stream<List<int>> {
 
   Entry(this.header, this._dataStream);
 
+  /// Creates an in-memory tar entry from the [header] and the [data] to store.
+  factory Entry.data(Header header, List<int> data) {
+    return Entry(header, Stream.value(data));
+  }
+
   @override
   StreamSubscription<List<int>> listen(void Function(List<int> event)? onData,
       {Function? onError, void Function()? onDone, bool? cancelOnError}) {
     return _dataStream.listen(onData,
         onError: onError, onDone: onDone, cancelOnError: cancelOnError);
   }
-
-  /// Reads this entry to memory, and then returns it as a [MemoryEntry].
-  FutureOr<MemoryEntry> readFully() async {
-    final builder = BytesBuilder(copy: false);
-    await forEach(builder.add);
-
-    return MemoryEntry._(header, builder.takeBytes());
-  }
-}
-
-/// A tar entry stored entirely in memory.
-class MemoryEntry extends Entry {
-  /// The data stored in this tar entry.
-  final Uint8List data;
-
-  MemoryEntry._(Header header, this.data) : super(header, Stream.value(data));
-
-  /// Constructs a memory entry from its [header] and the in-memory [data].
-  factory MemoryEntry(Header header, List<int> data) {
-    return MemoryEntry._(header, data.asUint8List());
-  }
-
-  /// Returns `this`.
-  @override
-  MemoryEntry readFully() => this;
 }
 
 class Header {

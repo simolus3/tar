@@ -216,13 +216,15 @@ class WritingSink extends StreamSink<Entry> {
         ..addByte($lf); // \n
     });
 
-    final file = MemoryEntry(
+    final paxData = buffer.takeBytes();
+    final file = Entry.data(
       Header(
         name: 'PaxHeader/${_paxHeaderCount++}',
         mode: 0,
+        size: paxData.length,
         type: FileType.extendedHeader,
       ),
-      buffer.takeBytes(),
+      paxData,
     );
     return _safeAdd(file);
   }

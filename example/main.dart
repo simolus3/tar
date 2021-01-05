@@ -21,7 +21,7 @@ Future<void> main() async {
   final output = File('test.tar').openWrite();
 
   await Stream<tar.Entry>.value(
-    tar.MemoryEntry(
+    tar.Entry.data(
       tar.Header(
           name: 'hello_dart.txt',
           mode: int.parse('644', radix: 8),

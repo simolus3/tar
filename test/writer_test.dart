@@ -9,7 +9,7 @@ import 'system_tar.dart';
 void main() {
   test('writes long file names', () async {
     final name = '${'very' * 30} long name.txt';
-    final withLongName = tar.MemoryEntry(
+    final withLongName = tar.Entry.data(
       tar.Header(name: name, mode: 0, size: 0),
       Uint8List(0),
     );
@@ -20,7 +20,7 @@ void main() {
 
   test('writes headers', () async {
     final date = DateTime.parse('2020-12-30 12:34');
-    final entry = tar.MemoryEntry(
+    final entry = tar.Entry.data(
       tar.Header(
         name: 'hello_dart.txt',
         mode: int.parse('744', radix: 8),
