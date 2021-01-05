@@ -11,8 +11,8 @@
 library tar;
 
 export 'src/entry.dart';
-export 'src/reader.dart' show Reader, reader;
-export 'src/writer.dart' show WritingSink, writer;
+export 'src/reader.dart' show createReader, reader;
+export 'src/writer.dart' show createWritingSink, writer;
 
 // For dartdoc.
 import 'src/reader.dart';

@@ -9,40 +9,12 @@ import 'common.dart';
 import 'entry.dart';
 
 /// A stream transformer turning byte-streams into a stream of tar entries.
-///
-/// You can iterate over entries in a tar archive like this:
-///
-/// ```dart
-/// import 'dart:io';
-/// import 'package:tar/tar.dart' as tar;
-///
-/// Future<void> main() async {
-///   final tarFile = File('file.tar.gz')
-///        .openRead()
-///        // use gzip.decoder if you're reading .tar.gz files
-///        .transform(gzip.decoder)
-///        .transform(const tar.Reader());
-///
-///  await for (final entry in tarFile) {
-///    print(entry.name);
-///    print(await entry.transform(utf8.decoder).first);
-///  }
-/// }
-/// ```
-class Reader extends StreamTransformerBase<List<int>, Entry> {
+class _Reader extends StreamTransformerBase<List<int>, Entry> {
   /// The maximum length for special files, such as extended PAX headers or long
   /// file names in GNU-tar.
-  ///
-  /// The content of those files has to be buffered in the reader until it
-  /// reaches the next entry. To avoid memory-based denial-of-service attacks
-  /// with large headers, this library only allows 1 KiB by default.
-  /// This limit can be increased, which is rarely needed.
   final int maxSpecialFileLength;
 
-  /// Creates a reader with a custom [maxSpecialFileLength].
-  ///
-  /// When using the default value, consider using the regular [reader] instead.
-  const Reader({this.maxSpecialFileLength = defaultSpecialLength})
+  const _Reader(this.maxSpecialFileLength)
       : assert(maxSpecialFileLength >= blockSize);
 
   @override
@@ -72,7 +44,25 @@ class Reader extends StreamTransformerBase<List<int>, Entry> {
 ///  }
 /// }
 /// ```
-const reader = Reader();
+const StreamTransformer<List<int>, Entry> reader =
+    _Reader(defaultSpecialLength);
+
+/// Creates a stream transformer turning byte-streams into a stream of tar
+/// entries.
+///
+/// This method allows specifying a custom [maxSpecialFileLength]. Most special
+/// files, such as extended PAX headers or long file names in GNU tar must be
+/// buffered in the reader since they affect upcoming tar entries before they're
+/// read. To avoid memory-based denial-of-service attacks based on large
+/// headers, this library only accepts special files with a length of 1 KiB by
+/// default. This limit can be inreased, which is rarely needed.
+///
+/// Instead of calling this method with the default arguments, consider using
+/// [reader].
+StreamTransformer<List<int>, Entry> createReader(
+    {int maxSpecialFileLength = defaultSpecialLength}) {
+  return _Reader(defaultSpecialLength);
+}
 
 class _BoundTarStream {
   // sync because we'll only add events in response to events that we receive.

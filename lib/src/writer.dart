@@ -17,7 +17,7 @@ class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
     // sync because the controller proxies another stream
     final controller = StreamController<List<int>>(sync: true);
     controller.onListen = () {
-      stream.pipe(WritingSink(controller));
+      stream.pipe(createWritingSink(controller));
     };
 
     return controller.stream;
@@ -30,7 +30,7 @@ class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
 /// [WritingSink] directly.
 const writer = _WritingTransformer();
 
-/// A sink emitting encoded tar files.
+/// Create a sink emitting encoded tar files to the [output] sink.
 ///
 /// For instance, you can use this to write a tar file:
 ///
@@ -59,7 +59,11 @@ const writer = _WritingTransformer();
 /// See also:
 ///  - [writer], a stream transformer using this sink
 ///  - [StreamSink]
-class WritingSink extends StreamSink<Entry> {
+StreamSink<Entry> createWritingSink(StreamSink<List<int>> output) {
+  return _WritingSink(output);
+}
+
+class _WritingSink extends StreamSink<Entry> {
   final StreamSink<List<int>> _output;
 
   int _paxHeaderCount = 0;
@@ -69,7 +73,7 @@ class WritingSink extends StreamSink<Entry> {
   int _pendingOperations = 0;
   final Lock _lock = Lock();
 
-  WritingSink(this._output);
+  _WritingSink(this._output);
 
   @override
   Future get done => _done.future;
