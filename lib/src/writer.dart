@@ -253,9 +253,8 @@ class _WritingSink extends StreamSink<Entry> {
 
       // Add two empty blocks at the end.
       await _doWork(() {
-        final empty = Uint8List(blockSize);
-        _output.add(empty);
-        _output.add(empty);
+        _output.add(zeroBlock);
+        _output.add(zeroBlock);
       });
     }
 

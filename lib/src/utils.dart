@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:charcode/charcode.dart';
+import 'package:chunked_stream/chunked_stream.dart';
 
 import 'constants.dart';
 import 'exception.dart';
@@ -126,8 +127,6 @@ bool isNotAscii(int i) => i > 128;
 /// precision, which implies that we cannot parse all the digits in since PAX
 /// allows for nanosecond level encoding.
 DateTime parsePaxTime(String paxTimeString) {
-  ArgumentError.checkNotNull(paxTimeString, 'paxTimeString');
-
   const maxMicroSecondDigits = 6;
 
   /// Split [paxTimeString] into seconds and sub-seconds parts.
@@ -163,4 +162,32 @@ DateTime parsePaxTime(String paxTimeString) {
 
 DateTime secondsSinceEpoch(int timestamp) {
   return DateTime.fromMillisecondsSinceEpoch(timestamp * 100);
+}
+
+int numBlocks(int fileSize) {
+  if (fileSize % blockSize == 0) return fileSize ~/ blockSize;
+
+  return fileSize ~/ blockSize + 1;
+}
+
+extension ToTyped on List<int> {
+  Uint8List asUint8List() {
+    // Flow analysis doesn't work on this.
+    final $this = this;
+    return $this is Uint8List ? $this : Uint8List.fromList(this);
+  }
+
+  bool get isAllZeroes {
+    for (var i = 0; i < length; i++) {
+      if (this[i] != 0) return false;
+    }
+
+    return true;
+  }
+}
+
+extension ChunkedStreamUtils on ChunkedStreamIterator<int> {
+  Future<Uint8List> readAsBlock(int size) async {
+    return (await read(size)).asUint8List();
+  }
 }

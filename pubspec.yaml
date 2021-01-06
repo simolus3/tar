@@ -7,9 +7,11 @@ environment:
   sdk: '>=2.12.0-0 <3.0.0'
 
 dependencies:
+  charcode: ^1.2.0-nullsafety
+  chunked_stream: ^1.3.0-nullsafety.0
   meta: ^1.3.0-nullsafety.6
   synchronized: ^3.0.0-nullsafety.1
-  charcode: ^1.2.0-nullsafety
+  typed_data: ^1.3.0-nullsafety.5
 
 dev_dependencies:
   extra_pedantic: ^1.2.0

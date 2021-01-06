@@ -22,6 +22,11 @@ enum TypeFlag {
   /// will transparently read those as [reag].
   reg,
 
+  /// Legacy-version of [reg] in old tar implementations.
+  ///
+  /// This is only used internally.
+  regA,
+
   /// Hard link - header-only, may not have a data body
   link,
 
@@ -78,8 +83,9 @@ enum TypeFlag {
 TypeFlag typeflagFromByte(int byte) {
   switch (byte) {
     case $0:
-    case 0: // regA in old type implementations, basically the same.
       return TypeFlag.reg;
+    case 0:
+      return TypeFlag.regA;
     case $1:
       return TypeFlag.link;
     case $2:
@@ -115,6 +121,7 @@ TypeFlag typeflagFromByte(int byte) {
 int typeflagToByte(TypeFlag flag) {
   switch (flag) {
     case TypeFlag.reg:
+    case TypeFlag.regA:
       return $0;
     case TypeFlag.link:
       return $1;
@@ -161,6 +168,7 @@ bool validateTypeFlag(TypeFlag typeFlag, Format format) {
           format.has(Format.star);
     case TypeFlag.link:
     case TypeFlag.reg:
+    case TypeFlag.regA:
       return true;
     case TypeFlag.xHeader:
     case TypeFlag.xGlobalHeader:

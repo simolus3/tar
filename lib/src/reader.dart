@@ -1,29 +1,37 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:charcode/ascii.dart';
+import 'package:charcode/charcode.dart';
+import 'package:chunked_stream/chunked_stream.dart';
 import 'package:meta/meta.dart';
+import 'package:typed_data/typed_buffers.dart';
 
 import 'constants.dart';
 import 'entry.dart';
+import 'exception.dart';
+import 'format.dart';
 import 'header.dart';
+import 'sparse.dart';
 import 'utils.dart';
 
-/// A stream transformer turning byte-streams into a stream of tar entries.
-class _Reader extends StreamTransformerBase<List<int>, Entry> {
-  /// The maximum length for special files, such as extended PAX headers or long
-  /// file names in GNU-tar.
-  final int maxSpecialFileLength;
-
-  const _Reader(this.maxSpecialFileLength)
-      : assert(maxSpecialFileLength >= blockSize);
+class _TarStreamTransformer extends StreamTransformerBase<List<int>, Entry> {
+  const _TarStreamTransformer();
 
   @override
-  Stream<Entry> bind(Stream<List<int>> stream) {
-    return _BoundTarStream(stream, maxSpecialFileLength).stream;
+  Stream<Entry> bind(Stream<List<int>> stream) async* {
+    final reader = Reader(stream);
+    var entry = await reader.next();
+
+    while (entry != null) {
+      yield entry;
+      entry = await reader.next();
+    }
+
+    if (!reader.hasSeenEof) {
+      throw TarException('Unexpected end of tar stream');
+    }
   }
 }
 
@@ -48,287 +56,252 @@ class _Reader extends StreamTransformerBase<List<int>, Entry> {
 ///  }
 /// }
 /// ```
-const StreamTransformer<List<int>, Entry> reader =
-    _Reader(defaultSpecialLength);
-
-/// Creates a stream transformer turning byte-streams into a stream of tar
-/// entries.
 ///
-/// This method allows specifying a custom [maxSpecialFileLength]. Most special
-/// files, such as extended PAX headers or long file names in GNU tar must be
-/// buffered in the reader since they affect upcoming tar entries before they're
-/// read. To avoid memory-based denial-of-service attacks based on large
-/// headers, this library only accepts special files with a length of 1 KiB by
-/// default. This limit can be inreased, which is rarely needed.
-///
-/// Instead of calling this method with the default arguments, consider using
-/// [reader].
-StreamTransformer<List<int>, Entry> createReader(
-    {int maxSpecialFileLength = defaultSpecialLength}) {
-  return _Reader(maxSpecialFileLength);
-}
+/// For more control over when entries are read, consider using a pull-based
+/// [Reader] instance and [Reader.next].
+const reader = _TarStreamTransformer();
 
-class _BoundTarStream {
-  // sync because we'll only add events in response to events that we receive.
-  final _controller = StreamController<Entry>(sync: true);
-  // We don't propagate pauses/resumes from the global [_controller] when we're
-  // reading an entry, so we have to remember the state to do that later.
-  var _controllerState = _ControllerState.idle;
-  // Whether we're skipping input to get to the end of a tar block.
-  bool _isWaitingForBlockToFinish = false;
-  // Whether we've seen the end of the tar stream, indicated by two empty
-  // blocks.
-  bool _hasReachedEnd = false;
-
-  StreamController<Uint8List>? _entryController;
-  // The subscription to the input stream from the constructor. We only start to
-  // listen when we have a listener to this stream, and we pause/resume the
-  // subscription as necessary.
-  late StreamSubscription<List<int>> _subscription;
-
-  /// Extended PAX headers used for long names.
-  ///
-  /// See also: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
+/// [Reader] provides sequential access to the TAR files in a TAR archive.
+/// It is designed to read from a stream and to spit out substreams for
+/// individual file contents in order to minimize the amount of memory needed
+/// to read each archive where possible.
+@sealed
+class Reader {
+  /// A chunked stream iterator to enable us to get our data.
+  final ChunkedStreamIterator<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
+  final int _maxSpecialFileSize;
 
-  TypeFlag? _processingSpecialTypeFlag;
+  bool _seenEof = false;
 
-  // When we're parsing a header, this stores collected header values. When
-  // processing a special file type (e.g. extended headers), this buffer will
-  // store the content of that file. We start by reading a header.
-  Uint8List _buffer = Uint8List(blockSize);
-  // The amount of bytes to read before we switch states (e.g. from headers to
-  // entries to vice-versa)
-  int _remainingBytes = blockSize;
-  // The offset in the current block, used to track how much data to skip when
-  // we go to the next block.
-  int _offsetInBlock = 0;
+  /// Skip the next [_skipNext] elements when reading in the stream.
+  int _skipNext = 0;
 
-  final int maxSpecialTypeLength;
+  /// Creates a tar reader reading from the raw [tarStream].
+  ///
+  /// The [maxSpecialFileSize] parameter can be used to limit the maximum length
+  /// of hidden entries in the tar stream. These entries include extended PAX
+  /// headers or long names in GNU tar. The content of those entries has to be
+  /// buffered in the parser to properly read the following tar entries. To
+  /// avoid memory-based denial-of-service attacks, this library limits their
+  /// maximum length. Changing the default of 2 KiB is rarely necessary.
+  Reader(Stream<List<int>> tarStream,
+      {int maxSpecialFileSize = defaultSpecialLength})
+      : _chunkedStream = ChunkedStreamIterator(tarStream),
+        _maxSpecialFileSize = maxSpecialFileSize;
 
-  Stream<Entry> get stream => _controller.stream;
+  /// Whether the end of the input stream appeared at an expected location.
+  ///
+  /// Users are encouraged to check this after [next] returned `null` for the
+  /// first time. If it returns `false`, the tar file ended unexpectedly.
+  bool get hasSeenEof => _seenEof;
 
-  _BoundTarStream(Stream<List<int>> stream, this.maxSpecialTypeLength) {
-    _controller
-      ..onPause = () {
-        _setStateAndPropagate(_ControllerState.paused);
+  /// Reads the tar file up until the beginning of the next logical file.
+  ///
+  /// If such file exists, it is returned as a tar [Entry]. Otherwise, the
+  /// returned future will complete with `null`.
+  Future<Entry?> next() async {
+    var gnuLongName = '';
+    var gnuLongLink = '';
+
+    var format =
+        Format.ustar | Format.pax | Format.gnu | Format.v7 | Format.star;
+
+    HeaderImpl? nextHeader;
+
+    /// Externally, [next] iterates through the tar archive as if it is a series
+    /// of files. Internally, the tar format often uses fake "files" to add meta
+    /// data that describes the next file. These meta data "files" should not
+    /// normally be visible to the outside. As such, this loop iterates through
+    /// one or more "header files" until it finds a "normal file".
+    while (true) {
+      if (_skipNext > 0) {
+        await _chunkedStream.read(_skipNext);
+        _skipNext = 0;
       }
-      ..onResume = () {
-        _setStateAndPropagate(_ControllerState.active);
+
+      final rawHeader = await _chunkedStream.readAsBlock(blockSize);
+
+      nextHeader = await _readHeader(rawHeader);
+      if (nextHeader == null) {
+        _seenEof = true;
+        return null;
       }
-      ..onCancel = () {
-        _setStateAndPropagate(_ControllerState.canceled);
-      }
-      ..onListen = () {
-        _controllerState = _ControllerState.active;
-        _subscription = stream.listen(
-          (chunk) {
-            try {
-              _processChunk(chunk);
-            } catch (e, s) {
-              _controller.addError(e, s);
-            }
-          },
-          onDone: () {
-            if (!_hasReachedEnd) {
-              _controller.addError(StateError('Unexpected end of input'));
-            }
-            _controller.close();
-          },
-          onError: _controller.addError,
-        );
-      };
-  }
 
-  void _setStateAndPropagate(_ControllerState state) {
-    _controllerState = state;
-    _propagateStateIfPossible();
-  }
+      format = format.mayOnlyBe(nextHeader.format);
 
-  void _propagateStateIfPossible() {
-    // Don't pause or resume if we are processing an entry. Users are supposed
-    // to pause/resume the entry stream instead.
-    if (_entryController == null) {
-      switch (_controllerState) {
-        case _ControllerState.idle:
-          throw AssertionError('Should not get back to idle.');
-        case _ControllerState.active:
-          if (_subscription.isPaused) _subscription.resume();
-          break;
-        case _ControllerState.paused:
-          if (!_subscription.isPaused) _subscription.pause();
-          break;
-        case _ControllerState.canceled:
-          _subscription.cancel();
-          break;
-      }
-    }
-  }
+      // Check for PAX/GNU special headers and files.
+      if (nextHeader.typeFlag == TypeFlag.xHeader ||
+          nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
+        format = format.mayOnlyBe(Format.pax);
+        final paxHeaderSize = _checkSpecialSize(nextHeader.size);
+        final rawPaxHeaders = await _chunkedStream.readAsBlock(paxHeaderSize);
 
-  /// Switches to a state in which we're skipping padding, if necessary.
-  void _skipPadding() {
-    if (_offsetInBlock != 0) {
-      _remainingBytes = blockSize - _offsetInBlock;
-      _isWaitingForBlockToFinish = true;
-    }
-  }
+        _readPaxHeaders(
+            rawPaxHeaders, nextHeader.typeFlag == TypeFlag.xGlobalHeader);
+        _markPaddingToSkip(paxHeaderSize);
 
-  void _processChunk(List<int> chunk) {
-    var offset = 0;
+        // This is a meta header affecting the next header.
+        continue;
+      } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
+          nextHeader.typeFlag == TypeFlag.gnuLongName) {
+        format = format.mayOnlyBe(Format.gnu);
+        final realName = await _chunkedStream.readAsBlock(
+            _checkSpecialSize(numBlocks(nextHeader.size) * blockSize));
 
-    List<int> read(int amount) {
-      final result = chunk.sublist(offset, offset + amount);
-      _remainingBytes -= amount;
-      offset += amount;
-      _offsetInBlock = (_offsetInBlock + amount).toUnsigned(blockSizeLog2);
-
-      return result;
-    }
-
-    void readSpecialFile(int availableBytes) {
-      _buffer.setAll(_buffer.length - _remainingBytes, read(availableBytes));
-
-      if (_remainingBytes == 0) {
-        switch (_processingSpecialTypeFlag) {
-          case TypeFlag.xHeader:
-            _paxHeaders.newLocals(_readPaxHeader());
-            break;
-          case TypeFlag.xGlobalHeader:
-            _paxHeaders.newGlobals(_readPaxHeader());
-            break;
-          // Fake a pax header for these two, they're otherwise equivalent
-          case TypeFlag.gnuLongLink:
-            _paxHeaders.addLocal(paxLinkpath, _readZeroTerminated());
-            break;
-          case TypeFlag.gnuLongName:
-            _paxHeaders.addLocal(paxPath, _readZeroTerminated());
-            break;
-          default:
-            throw AssertionError('Only headers are special types');
-        }
-
-        // Resume by parsing the next header, which is then a regular one
-        _skipPadding();
-        _processingSpecialTypeFlag = null;
-        if (_buffer.length != blockSize) _buffer = Uint8List(blockSize);
-        _remainingBytes = blockSize;
-      }
-    }
-
-    void readHeader(int availableBytes) {
-      _buffer.setAll(blockSize - _remainingBytes, read(availableBytes));
-      if (_remainingBytes == 0) {
-        // Header is complete, start emitting an entry. Note that we don't have
-        // to skip padding as headers always have the length of one block.
-        if (_buffer.isAllZeroes) {
-          _hasReachedEnd = true;
-          return;
-        }
-
-        final header = HeaderImpl.parseBlock(_buffer, paxHeaders: _paxHeaders);
-        final type = header.typeFlag;
-        if (!_transparentTypeFlags.contains(type)) {
-          final entry = _entryController = StreamController(
-            sync: true,
-            onListen: () {
-              if (_subscription.isPaused) _subscription.resume();
-            },
-            onPause: _subscription.pause,
-            onResume: _subscription.resume,
-          );
-          _remainingBytes = header.size;
-          _controller.add(Entry(header, entry.stream));
+        final readName = realName.readString(0, realName.length);
+        if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
+          gnuLongName = readName;
         } else {
-          final length = header.size;
-          if (length > maxSpecialTypeLength) {
-            _controller.addError(StateError(
-              'This tar file contains an extended PAX-header with a length of '
-              '$length bytes. Since these headers have to be buffered, this '
-              'tar reader permits a maximum length of $maxSpecialTypeLength. \n'
-              'You can increase this limit when constructing a tar.Reader().',
-            ));
-          }
-
-          _remainingBytes = header.size;
-          _buffer = Uint8List(header.size);
-          _processingSpecialTypeFlag = type;
+          gnuLongLink = readName;
         }
-      }
-    }
 
-    while (offset < chunk.length) {
-      if (_hasReachedEnd) break;
-
-      var remainingInChunk = chunk.length - offset;
-
-      if (_isWaitingForBlockToFinish) {
-        final remainingInBlock = blockSize - _offsetInBlock;
-
-        if (remainingInBlock <= remainingInChunk) {
-          // Skip the block padding, then go on with the next block
-          offset += remainingInBlock;
-          _offsetInBlock += remainingInBlock;
-          remainingInChunk -= remainingInBlock;
-          _isWaitingForBlockToFinish = false;
-        } else {
-          // The rest of this chunk is padding data that we can ignore.
-          _offsetInBlock += remainingInChunk;
-          _subscription.resume();
-          break;
-        }
-      }
-
-      final availableBytes = min(_remainingBytes, remainingInChunk);
-
-      if (_processingSpecialTypeFlag != null) {
-        readSpecialFile(availableBytes);
+        // This is a meta header affecting the next header.
+        continue;
       } else {
-        final currentEntry = _entryController;
-        if (currentEntry == null) {
-          // If there's no current entry, we're reading a header
-          readHeader(availableBytes);
-        } else {
-          // Otherwise, add to the current entry
-          final outputChunk = read(availableBytes);
-          currentEntry.add(outputChunk.asUint8List());
+        // The old GNU sparse format is handled here since it is technically
+        // just a regular file with additional attributes.
 
-          if (_remainingBytes == 0) {
-            // Entry is done. Close and start by reading the next header
-            currentEntry.close();
-            _entryController = null;
-            _propagateStateIfPossible();
+        if (gnuLongName.isNotEmpty) nextHeader.name = gnuLongName;
+        if (gnuLongLink.isNotEmpty) nextHeader.linkName = gnuLongLink;
 
-            _skipPadding();
-            _remainingBytes = blockSize;
-
-            _paxHeaders.clearLocals();
+        if (nextHeader.internalTypeFlag == TypeFlag.regA) {
+          /// Legacy archives use trailing slash for directories
+          if (nextHeader.name.endsWith('/')) {
+            nextHeader.internalTypeFlag = TypeFlag.dir;
+          } else {
+            nextHeader.internalTypeFlag = TypeFlag.reg;
           }
         }
+
+        final content = await _handleFile(nextHeader, rawHeader);
+
+        // Set the final guess at the format
+        if (format.has(Format.ustar) && format.has(Format.pax)) {
+          format = format.mayOnlyBe(Format.ustar);
+        }
+        nextHeader.format = format;
+        return Entry(nextHeader, content);
       }
+    }
+  }
+
+  int _checkSpecialSize(int size) {
+    if (size > _maxSpecialFileSize) {
+      throw TarException(
+          'TAR file contains hidden entry with an invalid size of $size.');
+    }
+
+    return size;
+  }
+
+  /// Reads the next block header and assumes that the underlying reader
+  /// is already aligned to a block boundary. It returns the raw block of the
+  /// header in case further processing is required.
+  ///
+  /// EOF is hit when one of the following occurs:
+  ///	* Exactly 0 bytes are read and EOF is hit.
+  ///	* Exactly 1 block of zeros is read and EOF is hit.
+  ///	* At least 2 blocks of zeros are read.
+  Future<HeaderImpl?> _readHeader(Uint8List rawHeader) async {
+    // Exactly 0 bytes are read and EOF is hit.
+    if (rawHeader.isEmpty) return null;
+
+    if (rawHeader.isAllZeroes) {
+      rawHeader = await _chunkedStream.readAsBlock(blockSize);
+
+      // Exactly 1 block of zeroes is read and EOF is hit.
+      if (rawHeader.isEmpty) return null;
+
+      if (rawHeader.isAllZeroes) {
+        // Two blocks of zeros are read - Normal EOF.
+        return null;
+      }
+
+      throw TarException('Encountered a non-zero block after a zero block');
+    }
+
+    return HeaderImpl.parseBlock(rawHeader, paxHeaders: _paxHeaders);
+  }
+
+  /// Creates a stream of the next entry's content
+  Future<Stream<List<int>>> _handleFile(
+      HeaderImpl header, Uint8List rawHeader) async {
+    List<SparseEntry>? sparseData;
+    if (header.typeFlag == TypeFlag.gnuSparse) {
+      sparseData = await _readOldGNUSparseMap(header, rawHeader);
+    } else {
+      sparseData = await _readGNUSparsePAXHeaders(header);
+    }
+
+    if (sparseData != null) {
+      if (header.hasContent &&
+          !validateSparseEntries(sparseData, header.size)) {
+        throw TarException.header('Invalid sparse file header.');
+      }
+
+      final sparseHoles = invertSparseEntries(sparseData, header.size);
+      final sparseDataLength =
+          sparseHoles.fold<int>(0, (value, element) => value + element.length);
+
+      final contents =
+          _chunkedStream.substream(numBlocks(sparseDataLength) * blockSize);
+      return sparseStream(contents, sparseHoles, header.size);
+    } else {
+      var size = header.size;
+      if (!header.hasContent) size = 0;
+
+      if (size < 0) {
+        throw TarException.header('Invalid size ($size) detected!');
+      }
+
+      if (size == 0) {
+        return const Stream<Never>.empty();
+      } else {
+        _markPaddingToSkip(size);
+        return _chunkedStream.substream(header.size);
+      }
+    }
+  }
+
+  /// Skips to the next block after reading [readSize] bytes from the beginning
+  /// of a previous block.
+  void _markPaddingToSkip(int readSize) {
+    final offsetInLastBlock = readSize.toUnsigned(blockSizeLog2);
+    if (offsetInLastBlock != 0) {
+      _skipNext = blockSize - offsetInLastBlock;
     }
   }
 
   /// Decodes the content of an extended pax header entry.
   ///
-  /// For details, see https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  Map<String, String> _readPaxHeader() {
+  /// Semantically, a [PAX Header][posixPax] is a map with string keys and
+  /// values, where both keys and values are encodes with utf8.
+  ///
+  /// However, [old GNU Versions][gnuSparse00] used to repeat keys to store
+  /// sparse file information in sparse headers. This method will transparently
+  /// rewrite the PAX format of version 0.0 to version 0.1.
+  ///
+  /// [posixPax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
+  /// [gnuSparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
+  void _readPaxHeaders(Uint8List data, bool isGlobal) {
     var offset = 0;
     final map = <String, String>{};
+    final sparseMap = <String>[];
 
-    while (offset < _buffer.length) {
+    while (offset < data.length) {
       // At the start of an entry, expect its length
       var length = 0;
-      var currentChar = _buffer[offset];
+      var currentChar = data[offset];
       var charsInLength = 0;
       while (currentChar >= $0 && currentChar <= $9) {
         length = length * 10 + currentChar - $0;
         charsInLength++;
-        currentChar = _buffer[++offset];
+        currentChar = data[++offset];
       }
 
       if (length == 0) {
-        throw StateError('Could not parse extended pax header: Got entry with '
-            'zero length.');
+        throw TarException.header('Invalid entry in pax header: Was empty');
       }
 
       // Skip the whitespace
@@ -336,13 +309,13 @@ class _BoundTarStream {
         throw StateError('Could not parse extended pax header: Expected '
             'whitespace after length indicator.');
       }
-      currentChar = _buffer[++offset];
+      currentChar = data[++offset];
 
       // Read the key
       final keyBuffer = StringBuffer();
       while (currentChar != $equal) {
         keyBuffer.writeCharCode(currentChar);
-        currentChar = _buffer[++offset];
+        currentChar = data[++offset];
       }
       final key = keyBuffer.toString();
       // Skip over the equals sign
@@ -351,11 +324,21 @@ class _BoundTarStream {
       // Now, read the value from the known size. We subtract 3 for the space,
       // the equals and the trailing newline
       final lengthOfValue = length - 3 - keyBuffer.length - charsInLength;
-      final value =
-          utf8.decode(_buffer.sublist(offset, offset + lengthOfValue));
-      // Ignore unrecognized headers to avoid unbounded growth of the global
-      // header map.
-      if (supportedPaxHeaders.contains(key)) {
+      final value = utf8.decode(data.sublist(offset, offset + lengthOfValue));
+
+      // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
+      // GNU.sparse.offset and GNU.sparse.numbytes headers.
+      if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
+        if ((sparseMap.length % 2 == 0 && key != paxGNUSparseOffset) ||
+            (sparseMap.length % 2 == 1 && key != paxGNUSparseNumBytes) ||
+            value.contains(',')) {
+          throw TarException.header('Invalid PAX Record');
+        }
+
+        sparseMap.add(value);
+      } else if (supportedPaxHeaders.contains(key)) {
+        // Ignore unrecognized headers to avoid unbounded growth of the global
+        // header map.
         map[key] = value;
       }
 
@@ -363,43 +346,252 @@ class _BoundTarStream {
       offset += lengthOfValue + 1;
     }
 
-    return map;
-  }
-
-  String _readZeroTerminated() {
-    return _buffer.readString(0, _buffer.length);
-  }
-}
-
-// Archive entries with those types are hidden from users
-const _transparentTypeFlags = {
-  TypeFlag.xHeader,
-  TypeFlag.xGlobalHeader,
-  TypeFlag.gnuLongLink,
-  TypeFlag.gnuLongName,
-};
-
-enum _ControllerState {
-  idle,
-  active,
-  paused,
-  canceled,
-}
-
-extension on Uint8List {
-  bool get isAllZeroes {
-    for (var i = 0; i < length; i++) {
-      if (this[i] != 0) return false;
+    if (sparseMap.isNotEmpty) {
+      map[paxGNUSparseMap] = sparseMap.join(',');
     }
-    return true;
-  }
-}
 
-extension on List<int> {
-  Uint8List asUint8List() {
-    // Flow analysis doesn't work on this.
-    final $this = this;
-    return $this is Uint8List ? $this : Uint8List.fromList(this);
+    if (isGlobal) {
+      _paxHeaders.newGlobals(map);
+    } else {
+      _paxHeaders.newLocals(map);
+    }
+  }
+
+  /// Checks the PAX headers for GNU sparse headers.
+  /// If they are found, then this function reads the sparse map and returns it.
+  /// This assumes that 0.0 headers have already been converted to 0.1 headers
+  /// by the PAX header parsing logic.
+  Future<List<SparseEntry>?> _readGNUSparsePAXHeaders(HeaderImpl header) async {
+    /// Identify the version of GNU headers.
+    var isVersion1 = false;
+    final major = _paxHeaders[paxGNUSparseMajor];
+    final minor = _paxHeaders[paxGNUSparseMinor];
+
+    final sparseMapHeader = _paxHeaders[paxGNUSparseMap];
+    if (major == '0' && (minor == '0' || minor == '1') ||
+        // assume 0.0 or 0.1 if no version header is set
+        sparseMapHeader != null && sparseMapHeader.isNotEmpty) {
+      isVersion1 = false;
+    } else if (major == '1' && minor == '0') {
+      isVersion1 = true;
+    } else {
+      // Unknown version that we don't support
+      return null;
+    }
+
+    header.format |= Format.pax;
+
+    /// Update [header] from GNU sparse PAX headers.
+    final possibleName = _paxHeaders[paxGNUSparseName] ?? '';
+    if (possibleName.isNotEmpty) {
+      header.name = possibleName;
+    }
+
+    final possibleSize =
+        _paxHeaders[paxGNUSparseSize] ?? _paxHeaders[paxGNUSparseRealSize];
+
+    if (possibleSize != null && possibleSize.isNotEmpty) {
+      final size = int.tryParse(possibleSize, radix: 10);
+      if (size == null) {
+        throw TarException.header('Invalid PAX size ($possibleSize) detected');
+      }
+
+      header.size = size;
+    }
+
+    // Read the sparse map according to the appropriate format.
+    if (isVersion1) {
+      return await _readGNUSparseMap1x0();
+    }
+
+    return _readGNUSparseMap0x1(header);
+  }
+
+  /// Reads the sparse map as stored in GNU's PAX sparse format version 1.0.
+  /// The format of the sparse map consists of a series of newline-terminated
+  /// numeric fields. The first field is the number of entries and is always
+  /// present. Following this are the entries, consisting of two fields
+  /// (offset, length). This function must stop reading at the end boundary of
+  /// the block containing the last newline.
+  ///
+  /// Note that the GNU manual says that numeric values should be encoded in
+  /// octal format. However, the GNU tar utility itself outputs these values in
+  /// decimal. As such, this library treats values as being encoded in decimal.
+  Future<List<SparseEntry>> _readGNUSparseMap1x0() async {
+    var newLineCount = 0;
+    final block = Uint8Buffer();
+
+    /// Ensures that [block] h as at least [n] tokens.
+    Future<void> feedTokens(int n) async {
+      while (newLineCount < n) {
+        final newBlock = await _chunkedStream.readAsBlock(blockSize);
+        if (newBlock.length < blockSize) {
+          throw TarException.header(
+              'GNU Sparse Map does not have enough lines!');
+        }
+
+        block.addAll(newBlock);
+        newLineCount += newBlock.where((byte) => byte == $lf).length;
+      }
+    }
+
+    /// Get the next token delimited by a newline. This assumes that
+    /// at least one newline exists in the buffer.
+    String nextToken() {
+      newLineCount--;
+      final nextNewLineIndex = block.indexOf($lf);
+      final result = block.sublist(0, nextNewLineIndex).asUint8List();
+      block.removeRange(0, nextNewLineIndex + 1);
+      return result.readString(0, nextNewLineIndex);
+    }
+
+    await feedTokens(1);
+
+    // Parse for the number of entries.
+    // Use integer overflow resistant math to check this.
+    final numEntriesString = nextToken();
+    final numEntries = int.tryParse(numEntriesString);
+    if (numEntries == null || numEntries < 0 || 2 * numEntries < numEntries) {
+      throw TarException.header(
+          'Invalid sparse map number of entries: $numEntriesString!');
+    }
+
+    // Parse for all member entries.
+    // [numEntries] is trusted after this since a potential attacker must have
+    // committed resources proportional to what this library used.
+    await feedTokens(2 * numEntries);
+
+    final sparseData = <SparseEntry>[];
+
+    for (var i = 0; i < numEntries; i++) {
+      final offsetToken = nextToken();
+      final lengthToken = nextToken();
+
+      final offset = int.tryParse(offsetToken);
+      final length = int.tryParse(lengthToken);
+
+      if (offset == null || length == null) {
+        throw TarException.header(
+            'Failed to read a GNU sparse map entry. Encountered '
+            'offset: $offsetToken, length: $lengthToken');
+      }
+
+      sparseData.add(SparseEntry(offset, length));
+    }
+    return sparseData;
+  }
+
+  /// Reads the sparse map as stored in GNU's PAX sparse format version 0.1.
+  /// The sparse map is stored in the PAX headers and is stored like this:
+  /// `offset₀,size₀,offset₁,size₁...`
+  List<SparseEntry> _readGNUSparseMap0x1(Header header) {
+    // Get number of entries, check for integer overflows
+    final numEntriesString = _paxHeaders[paxGNUSparseNumBlocks];
+    final numEntries =
+        numEntriesString != null ? int.tryParse(numEntriesString) : null;
+
+    if (numEntries == null || numEntries < 0 || 2 * numEntries < numEntries) {
+      throw TarException.header('Invalid GNU version 0.1 map');
+    }
+
+    // There should be two numbers in [sparseMap] for each entry.
+    final sparseMap = _paxHeaders[paxGNUSparseMap]?.split(',');
+    if (sparseMap == null) {
+      throw TarException.header('Invalid GNU version 0.1 map');
+    }
+
+    if (sparseMap.length != 2 * numEntries) {
+      throw TarException.header(
+          'Detected sparse map length ${sparseMap.length} '
+          'that is not twice the number of entries $numEntries');
+    }
+
+    /// Loop through sparse map entries.
+    /// [numEntries] is now trusted.
+    final sparseData = <SparseEntry>[];
+    for (var i = 0; i < sparseMap.length; i += 2) {
+      final offset = int.tryParse(sparseMap[i]);
+      final length = int.tryParse(sparseMap[i + 1]);
+
+      if (offset == null || length == null) {
+        throw TarException.header(
+            'Failed to read a GNU sparse map entry. Encountered '
+            'offset: $offset, length: $length');
+      }
+
+      sparseData.add(SparseEntry(offset, length));
+    }
+
+    return sparseData;
+  }
+
+  /// Reads the sparse map from the old GNU sparse format.
+  /// The sparse map is stored in the tar header if it's small enough.
+  /// If it's larger than four entries, then one or more extension headers are
+  /// used to store the rest of the sparse map.
+  ///
+  /// [header.size] does not reflect the size of any extended headers used.
+  /// Thus, this function will read from the chunked stream iterator to fetch
+  /// extra headers.
+  ///
+  /// See also: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC191
+  Future<List<SparseEntry>> _readOldGNUSparseMap(
+      HeaderImpl header, Uint8List rawHeader) async {
+    // Make sure that the input format is GNU.
+    // Unfortunately, the STAR format also has a sparse header format that uses
+    // the same type flag but has a completely different layout.
+    if (header.format != Format.gnu) {
+      throw TarException.header('Tried to read sparse map of non-GNU header');
+    }
+
+    header.size = rawHeader.readNumeric(483, 12);
+    final sparseMaps = <Uint8List>[];
+
+    var sparse = rawHeader.sublist(386, 483);
+    sparseMaps.add(sparse);
+
+    while (true) {
+      final maxEntries = sparse.length ~/ 24;
+      if (sparse[24 * maxEntries] > 0) {
+        // If there are more entries, read an extension header and parse its
+        // entries.
+        sparse = await _chunkedStream.readAsBlock(blockSize);
+        sparseMaps.add(sparse);
+        continue;
+      }
+
+      break;
+    }
+
+    try {
+      return _processOldGNUSparseMap(sparseMaps);
+    } on FormatException {
+      throw TarException('Invalid old GNU Sparse Map');
+    }
+  }
+
+  /// Process [sparseMaps], which is known to be an OLD GNU v0.1 sparse map.
+  ///
+  /// For details, see https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC191
+  List<SparseEntry> _processOldGNUSparseMap(List<Uint8List> sparseMaps) {
+    final sparseData = <SparseEntry>[];
+
+    for (final sparseMap in sparseMaps) {
+      final maxEntries = sparseMap.length ~/ 24;
+      for (var i = 0; i < maxEntries; i++) {
+        // This termination condition is identical to GNU and BSD tar.
+        if (sparseMap[i * 24] == 0) {
+          // Don't return, need to process extended headers (even if empty)
+          break;
+        }
+
+        final offset = sparseMap.readNumeric(i * 24, 12);
+        final length = sparseMap.readNumeric(i * 24 + 12, 12);
+
+        sparseData.add(SparseEntry(offset, length));
+      }
+    }
+    return sparseData;
   }
 }
 

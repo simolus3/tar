@@ -23,7 +23,13 @@ void main() {
         .openRead()
         .transform(tar.reader);
 
-    expect(tarEntries, emitsError(isStateError));
+    expect(
+      tarEntries,
+      emitsError(
+        isFormatException.having((e) => e.message, 'message',
+            contains('hidden entry with an invalid size')),
+      ),
+    );
   });
 
   test('throws on unexpected EOF', () {
@@ -37,7 +43,7 @@ void main() {
             .having((e) => e.message, 'message', contains('Unexpected end')),
       ),
     );
-  });
+  }, skip: 'https://github.com/simolus3/tar/issues/4');
 }
 
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {

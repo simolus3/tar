@@ -10,5 +10,7 @@ analyzer:
 
 linter:
   rules:
-    # This rule has just too many false-positives...
-    close_sinks: false
+    close_sinks: false # This rule has just too many false-positives...
+    literal_only_boolean_expressions: false # Nothing wrong with a little while(true)
+    parameter_assignments: false
+    unnecessary_await_in_return: false

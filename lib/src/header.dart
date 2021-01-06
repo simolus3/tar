@@ -111,8 +111,7 @@ abstract class Header {
 
 @internal
 class HeaderImpl extends Header {
-  @override
-  TypeFlag typeFlag;
+  TypeFlag internalTypeFlag;
 
   @override
   String name;
@@ -156,6 +155,11 @@ class HeaderImpl extends Header {
   @override
   Format format;
 
+  @override
+  TypeFlag get typeFlag {
+    return internalTypeFlag == TypeFlag.regA ? TypeFlag.reg : internalTypeFlag;
+  }
+
   /// This constructor is meant to help us deal with header-only headers (i.e.
   /// meta-headers that only describe the next file instead of being a header
   /// to files themselves)
@@ -163,7 +167,7 @@ class HeaderImpl extends Header {
     required this.name,
     required this.modified,
     required this.format,
-    required this.typeFlag,
+    required TypeFlag typeFlag,
     this.linkName,
     this.mode = 0,
     this.size = -1,
@@ -175,7 +179,8 @@ class HeaderImpl extends Header {
     this.changed,
     this.devMajor = 0,
     this.devMinor = 0,
-  }) : super._();
+  })  : internalTypeFlag = typeFlag,
+        super._();
 
   factory HeaderImpl.parseBlock(Uint8List headerBlock,
       {Map<String, String> paxHeaders = const {}}) {
@@ -300,8 +305,6 @@ class HeaderImpl extends Header {
 /// checksum, and then attempts to guess the specific format based
 /// on magic values. If the checksum fails, then an error is thrown.
 Format _getFormat(Uint8List rawHeader) {
-  ArgumentError.checkNotNull(rawHeader, 'rawHeader');
-
   final checksum = rawHeader.readOctal(checksumOffset, checksumLength);
 
   // Modern TAR archives use the unsigned checksum, but we check the signed
