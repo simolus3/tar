@@ -10,7 +10,11 @@
 /// [writer].
 library tar;
 
+export 'src/constants.dart' show TypeFlag;
 export 'src/entry.dart';
+export 'src/exception.dart';
+export 'src/format.dart';
+export 'src/header.dart' show Header;
 export 'src/reader.dart' show createReader, reader;
 export 'src/writer.dart' show createWritingSink, writer;
 

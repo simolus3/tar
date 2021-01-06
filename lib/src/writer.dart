@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:charcode/ascii.dart';
-
-import 'common.dart';
-import 'entry.dart';
-
 import 'package:synchronized/synchronized.dart';
+import 'package:tar/src/format.dart';
+
+import 'constants.dart';
+import 'entry.dart';
+import 'header.dart';
 
 class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
   const _WritingTransformer();
@@ -122,26 +123,26 @@ class _WritingSink extends StreamSink<Entry> {
     // expect them to be zero-terminated, so use 99 chars to be safe.
     final paxHeader = <String, List<int>>{};
     if (nameBytes.length > 99) {
-      paxHeader[paxHeaderPath] = nameBytes;
+      paxHeader[paxPath] = nameBytes;
       nameBytes = nameBytes.sublist(0, 99);
     }
     if (linkBytes.length > 99) {
-      paxHeader[paxHeaderLinkName] = linkBytes;
+      paxHeader[paxLinkpath] = linkBytes;
       linkBytes = linkBytes.sublist(0, 99);
     }
 
     // It's even worse for users and groups, where we only get 31 usable chars.
     if (gnameBytes.length > 31) {
-      paxHeader[paxHeaderGname] = gnameBytes;
+      paxHeader[paxGname] = gnameBytes;
       gnameBytes = gnameBytes.sublist(0, 31);
     }
     if (unameBytes.length > 31) {
-      paxHeader[paxHeaderUname] = unameBytes;
+      paxHeader[paxUname] = unameBytes;
       unameBytes = unameBytes.sublist(0, 31);
     }
 
     if (size > maxIntFor12CharOct) {
-      paxHeader[paxHeaderSize] = ascii.encode(size.toString());
+      paxHeader[paxSize] = ascii.encode(size.toString());
     }
 
     if (paxHeader.isNotEmpty) {
@@ -151,13 +152,13 @@ class _WritingSink extends StreamSink<Entry> {
     final headerBlock = Uint8List(blockSize)
       ..setAll(0, nameBytes)
       ..setUint(header.mode, 100, 8)
-      ..setUint(header.uid, 108, 8)
-      ..setUint(header.gid, 116, 8)
+      ..setUint(header.userId, 108, 8)
+      ..setUint(header.groupId, 116, 8)
       ..setUint(size, 124, 12)
-      ..setUint(header.lastModified.millisecondsSinceEpoch ~/ 1000, 136, 12)
-      ..[156] = header.type.char
+      ..setUint(header.modified.millisecondsSinceEpoch ~/ 1000, 136, 12)
+      ..[156] = typeflagToByte(header.typeFlag)
       ..setAll(157, linkBytes)
-      ..setAll(257, magic)
+      ..setAll(257, magicUstar)
       ..setUint(0, 263, 2) // version
       ..setAll(265, unameBytes)
       ..setAll(297, gnameBytes)
@@ -222,11 +223,13 @@ class _WritingSink extends StreamSink<Entry> {
 
     final paxData = buffer.takeBytes();
     final file = Entry.data(
-      Header(
+      HeaderImpl.internal(
+        format: Format.pax,
+        modified: DateTime.fromMillisecondsSinceEpoch(0),
         name: 'PaxHeader/${_paxHeaderCount++}',
         mode: 0,
         size: paxData.length,
-        type: FileType.extendedHeader,
+        typeFlag: TypeFlag.xHeader,
       ),
       paxData,
     );
@@ -287,27 +290,6 @@ extension on Uint8List {
         // done, left-pad with spaces
         this[pos] = $space;
       }
-    }
-  }
-}
-
-extension FileTypeChar on FileType {
-  int get char {
-    switch (this) {
-      case FileType.regular:
-        return aregtype;
-      case FileType.link:
-        return linktype;
-      case FileType.directory:
-        return dirtype;
-      case FileType.extendedHeader:
-        return extendedHeader;
-      case FileType.globalExtended:
-        return globalExtended;
-      case FileType.unsupported:
-      case FileType.gnuLongLinkName:
-      case FileType.gnuLongName:
-        throw UnsupportedError('Unsupported file type');
     }
   }
 }

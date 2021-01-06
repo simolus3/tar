@@ -1,12 +1,13 @@
 name: tar
 description: Memory-efficient, streaming implementation of the tar file format
-version: 0.1.0-nullsafety.1
+version: 0.2.0-dev
 repository: https://github.com/simolus3/tar/
 
 environment:
   sdk: '>=2.12.0-0 <3.0.0'
 
 dependencies:
+  meta: ^1.3.0-nullsafety.6
   synchronized: ^3.0.0-nullsafety.1
   charcode: ^1.2.0-nullsafety
 

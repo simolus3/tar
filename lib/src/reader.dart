@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:charcode/ascii.dart';
+import 'package:meta/meta.dart';
 
-import 'common.dart';
+import 'constants.dart';
 import 'entry.dart';
+import 'header.dart';
+import 'utils.dart';
 
 /// A stream transformer turning byte-streams into a stream of tar entries.
 class _Reader extends StreamTransformerBase<List<int>, Entry> {
@@ -87,7 +91,7 @@ class _BoundTarStream {
   /// See also: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
   final PaxHeaders _paxHeaders = PaxHeaders();
 
-  FileType? _processingSpecialType;
+  TypeFlag? _processingSpecialTypeFlag;
 
   // When we're parsing a header, this stores collected header values. When
   // processing a special file type (e.g. extended headers), this buffer will
@@ -185,19 +189,19 @@ class _BoundTarStream {
       _buffer.setAll(_buffer.length - _remainingBytes, read(availableBytes));
 
       if (_remainingBytes == 0) {
-        switch (_processingSpecialType) {
-          case FileType.extendedHeader:
+        switch (_processingSpecialTypeFlag) {
+          case TypeFlag.xHeader:
             _paxHeaders.newLocals(_readPaxHeader());
             break;
-          case FileType.globalExtended:
+          case TypeFlag.xGlobalHeader:
             _paxHeaders.newGlobals(_readPaxHeader());
             break;
           // Fake a pax header for these two, they're otherwise equivalent
-          case FileType.gnuLongLinkName:
-            _paxHeaders.linkName = _readZeroTerminated();
+          case TypeFlag.gnuLongLink:
+            _paxHeaders.addLocal(paxLinkpath, _readZeroTerminated());
             break;
-          case FileType.gnuLongName:
-            _paxHeaders.fileName = _readZeroTerminated();
+          case TypeFlag.gnuLongName:
+            _paxHeaders.addLocal(paxPath, _readZeroTerminated());
             break;
           default:
             throw AssertionError('Only headers are special types');
@@ -205,7 +209,7 @@ class _BoundTarStream {
 
         // Resume by parsing the next header, which is then a regular one
         _skipPadding();
-        _processingSpecialType = null;
+        _processingSpecialTypeFlag = null;
         if (_buffer.length != blockSize) _buffer = Uint8List(blockSize);
         _remainingBytes = blockSize;
       }
@@ -221,9 +225,9 @@ class _BoundTarStream {
           return;
         }
 
-        final header = Header.fromBlock(_buffer, headers: _paxHeaders);
-        final type = header.type;
-        if (!_transparentFileTypes.contains(type)) {
+        final header = HeaderImpl.parseBlock(_buffer, paxHeaders: _paxHeaders);
+        final type = header.typeFlag;
+        if (!_transparentTypeFlags.contains(type)) {
           final entry = _entryController = StreamController(
             sync: true,
             onListen: () {
@@ -247,7 +251,7 @@ class _BoundTarStream {
 
           _remainingBytes = header.size;
           _buffer = Uint8List(header.size);
-          _processingSpecialType = type;
+          _processingSpecialTypeFlag = type;
         }
       }
     }
@@ -276,7 +280,7 @@ class _BoundTarStream {
 
       final availableBytes = min(_remainingBytes, remainingInChunk);
 
-      if (_processingSpecialType != null) {
+      if (_processingSpecialTypeFlag != null) {
         readSpecialFile(availableBytes);
       } else {
         final currentEntry = _entryController;
@@ -363,16 +367,16 @@ class _BoundTarStream {
   }
 
   String _readZeroTerminated() {
-    return readZeroTerminated(_buffer, 0, _buffer.length);
+    return _buffer.readString(0, _buffer.length);
   }
 }
 
 // Archive entries with those types are hidden from users
-const _transparentFileTypes = {
-  FileType.extendedHeader,
-  FileType.globalExtended,
-  FileType.gnuLongLinkName,
-  FileType.gnuLongName,
+const _transparentTypeFlags = {
+  TypeFlag.xHeader,
+  TypeFlag.xGlobalHeader,
+  TypeFlag.gnuLongLink,
+  TypeFlag.gnuLongName,
 };
 
 enum _ControllerState {
@@ -389,4 +393,53 @@ extension on Uint8List {
     }
     return true;
   }
+}
+
+extension on List<int> {
+  Uint8List asUint8List() {
+    // Flow analysis doesn't work on this.
+    final $this = this;
+    return $this is Uint8List ? $this : Uint8List.fromList(this);
+  }
+}
+
+@internal
+class PaxHeaders extends UnmodifiableMapBase<String, String> {
+  final Map<String, String> _globalHeaders = {};
+  Map<String, String> _localHeaders = {};
+
+  /// Applies new global PAX-headers from the map.
+  ///
+  /// The [headers] will replace global headers with the same key, but leave
+  /// others intact.
+  void newGlobals(Map<String, String> headers) {
+    _globalHeaders.addAll(headers);
+  }
+
+  void addLocal(String key, String value) => _localHeaders[key] = value;
+
+  void removeLocal(String key) => _localHeaders.remove(key);
+
+  /// Applies new local PAX-headers from the map.
+  ///
+  /// This replaces all currently active local headers.
+  void newLocals(Map<String, String> headers) {
+    _localHeaders = headers;
+  }
+
+  /// Clears local headers.
+  ///
+  /// This is used by the reader after a file has ended, as local headers only
+  /// apply to the next entry.
+  void clearLocals() {
+    _localHeaders = {};
+  }
+
+  @override
+  String? operator [](Object? key) {
+    return _globalHeaders[key] ?? _localHeaders[key];
+  }
+
+  @override
+  Iterable<String> get keys => {..._globalHeaders.keys, ..._localHeaders.keys};
 }

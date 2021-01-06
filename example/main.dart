@@ -10,7 +10,7 @@ Future<void> main() async {
   await for (final entry in tarFile) {
     print('${entry.name}: ');
 
-    if (entry.type == tar.FileType.regular) {
+    if (entry.type == tar.TypeFlag.reg) {
       // Tar entries are streams emitting their content, so we can get their
       // string content like this:
       print(await entry.transform(utf8.decoder).first);

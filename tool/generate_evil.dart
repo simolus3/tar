@@ -10,7 +10,7 @@ Future<void> main() async {
       tar.Header(
         name: 'PaxHeader',
         mode: 0,
-        type: tar.FileType.extendedHeader,
+        typeFlag: tar.TypeFlag.xHeader,
         size: 1024 * 1024 * 1024 * 7,
       ),
       Uint8List(0),
