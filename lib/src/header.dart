@@ -70,8 +70,6 @@ abstract class Header {
     }
   }
 
-  Header._();
-
   factory Header({
     required String name,
     Format? format,
@@ -107,6 +105,8 @@ abstract class Header {
       devMinor: devMinor,
     );
   }
+
+  Header._();
 }
 
 @internal
@@ -181,7 +181,7 @@ class HeaderImpl extends Header {
       {Map<String, String> paxHeaders = const {}}) {
     RangeError.checkValidRange(headerBlock.length, blockSize, blockSize);
 
-    var format = _getFormat(headerBlock);
+    final format = _getFormat(headerBlock);
     final size = paxHeaders.size ?? headerBlock.readOctal(124, 12);
 
     // Start by reading data available in every format.

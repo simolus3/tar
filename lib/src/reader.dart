@@ -65,7 +65,7 @@ const StreamTransformer<List<int>, Entry> reader =
 /// [reader].
 StreamTransformer<List<int>, Entry> createReader(
     {int maxSpecialFileLength = defaultSpecialLength}) {
-  return _Reader(defaultSpecialLength);
+  return _Reader(maxSpecialFileLength);
 }
 
 class _BoundTarStream {

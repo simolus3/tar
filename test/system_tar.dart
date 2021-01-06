@@ -14,7 +14,7 @@ Future<Process> startTar(List<String> args) {
     // Attach stderr listener, we don't expect any output on that
     late List<int> data;
     final sink = ByteConversionSink.withCallback((result) => data = result);
-    proc.stderr.forEach(sink.add).then((_) {
+    proc.stderr.forEach(sink.add).then((Object? _) {
       sink.close();
       const LineSplitter().convert(utf8.decode(data)).forEach(stderr.writeln);
     });

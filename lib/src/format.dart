@@ -28,7 +28,7 @@ class Format {
   int get hashCode => _value;
 
   @override
-  bool operator ==(other) {
+  bool operator ==(Object? other) {
     if (other is! Format) return false;
 
     return _value == other._value;

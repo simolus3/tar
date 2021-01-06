@@ -69,7 +69,7 @@ class _WritingSink extends StreamSink<Entry> {
 
   int _paxHeaderCount = 0;
   bool _closed = false;
-  final Completer<void> _done = Completer();
+  final Completer<Object?> _done = Completer();
 
   int _pendingOperations = 0;
   final Lock _lock = Lock();
@@ -77,7 +77,7 @@ class _WritingSink extends StreamSink<Entry> {
   _WritingSink(this._output);
 
   @override
-  Future get done => _done.future;
+  Future<void> get done => _done.future;
 
   @override
   Future<void> add(Entry event) {
@@ -87,7 +87,7 @@ class _WritingSink extends StreamSink<Entry> {
     return _doWork(() => _safeAdd(event));
   }
 
-  Future<void> _doWork(FutureOr Function() work) async {
+  Future<void> _doWork(FutureOr<void> Function() work) async {
     _pendingOperations++;
     try {
       await _lock.synchronized(work);
@@ -170,7 +170,7 @@ class _WritingSink extends StreamSink<Entry> {
     for (final byte in headerBlock) {
       checksum += byte;
     }
-    headerBlock..setUint(checksum, 148, 8);
+    headerBlock.setUint(checksum, 148, 8);
 
     _output.add(headerBlock);
 
@@ -178,9 +178,7 @@ class _WritingSink extends StreamSink<Entry> {
     if (bufferedData != null) {
       _output.add(bufferedData);
     } else {
-      await for (final chunk in event) {
-        _output.add(chunk);
-      }
+      await event.forEach(_output.add);
     }
 
     final padding = -size % blockSize;
@@ -208,7 +206,7 @@ class _WritingSink extends StreamSink<Entry> {
 
       while (actualLength != indicatedLength) {
         indicatedLength++;
-        indicatedLength.toString().length;
+        actualLength = payloadLength + indicatedLength.toString().length;
       }
 
       // With that sorted out, let's add the line
@@ -242,14 +240,14 @@ class _WritingSink extends StreamSink<Entry> {
   }
 
   @override
-  Future addStream(Stream<Entry> stream) async {
+  Future<void> addStream(Stream<Entry> stream) async {
     await for (final entry in stream) {
       await add(entry);
     }
   }
 
   @override
-  Future close() async {
+  Future<void> close() async {
     if (!_closed) {
       _closed = true;
 
