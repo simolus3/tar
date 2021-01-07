@@ -41,7 +41,10 @@ extension ByteBufferUtils on Uint8List {
     for (var i = length - 1; i >= 0; i--) {
       final charCode = this[offset + i];
       // Some tar implementations add a \0 or space at the end, ignore that
-      if (charCode < $0 || charCode > $9) continue;
+      if (charCode == 0 || charCode == $space) continue;
+      if (charCode < $0 || charCode > $9) {
+        throw TarException('Invalid octal value');
+      }
 
       // Obtain the numerical value of this digit
       final digit = charCode - $0;
@@ -56,6 +59,8 @@ extension ByteBufferUtils on Uint8List {
   ///
   /// This function may return negative numbers.
   int readNumeric(int offset, int length) {
+    if (length == 0) return 0;
+
     // Check for base-256 (binary) format first. If the first bit is set, then
     // all following bits constitute a two's complement encoded number in big-
     // endian byte order.
@@ -68,7 +73,8 @@ extension ByteBufferUtils on Uint8List {
       // date bytes and treat the value as an unsigned number.
       final inverseMask = firstByte & 0x40 != 0 ? 0xff : 0x00;
 
-      var x = firstByte & 0x7f; // Ignore signal bit in the first byte
+      // Ignore signal bit in the first byte
+      var x = (firstByte ^ inverseMask) & 0x7f;
 
       for (var i = 1; i < length; i++) {
         var byte = this[offset + i];

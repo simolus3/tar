@@ -142,7 +142,7 @@ class Reader implements StreamIterator<Header> {
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
         final rawPaxHeaders = await _readFullBlock(paxHeaderSize);
 
-        _readPaxHeaders(
+        _paxHeaders.readPaxHeaders(
             rawPaxHeaders, nextHeader.typeFlag == TypeFlag.xGlobalHeader);
         _markPaddingToSkip(paxHeaderSize);
 
@@ -360,90 +360,6 @@ class Reader implements StreamIterator<Header> {
     final offsetInLastBlock = readSize.toUnsigned(blockSizeLog2);
     if (offsetInLastBlock != 0) {
       _skipNext = blockSize - offsetInLastBlock;
-    }
-  }
-
-  /// Decodes the content of an extended pax header entry.
-  ///
-  /// Semantically, a [PAX Header][posixPax] is a map with string keys and
-  /// values, where both keys and values are encodes with utf8.
-  ///
-  /// However, [old GNU Versions][gnuSparse00] used to repeat keys to store
-  /// sparse file information in sparse headers. This method will transparently
-  /// rewrite the PAX format of version 0.0 to version 0.1.
-  ///
-  /// [posixPax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  /// [gnuSparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
-  void _readPaxHeaders(Uint8List data, bool isGlobal) {
-    var offset = 0;
-    final map = <String, String>{};
-    final sparseMap = <String>[];
-
-    while (offset < data.length) {
-      // At the start of an entry, expect its length
-      var length = 0;
-      var currentChar = data[offset];
-      var charsInLength = 0;
-      while (currentChar >= $0 && currentChar <= $9) {
-        length = length * 10 + currentChar - $0;
-        charsInLength++;
-        currentChar = data[++offset];
-      }
-
-      if (length == 0) {
-        throw TarException.header('Invalid entry in pax header: Was empty');
-      }
-
-      // Skip the whitespace
-      if (currentChar != $space) {
-        throw StateError('Could not parse extended pax header: Expected '
-            'whitespace after length indicator.');
-      }
-      currentChar = data[++offset];
-
-      // Read the key
-      final keyBuffer = StringBuffer();
-      while (currentChar != $equal) {
-        keyBuffer.writeCharCode(currentChar);
-        currentChar = data[++offset];
-      }
-      final key = keyBuffer.toString();
-      // Skip over the equals sign
-      offset++;
-
-      // Now, read the value from the known size. We subtract 3 for the space,
-      // the equals and the trailing newline
-      final lengthOfValue = length - 3 - keyBuffer.length - charsInLength;
-      final value = utf8.decode(data.sublist(offset, offset + lengthOfValue));
-
-      // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
-      // GNU.sparse.offset and GNU.sparse.numbytes headers.
-      if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
-        if ((sparseMap.length % 2 == 0 && key != paxGNUSparseOffset) ||
-            (sparseMap.length % 2 == 1 && key != paxGNUSparseNumBytes) ||
-            value.contains(',')) {
-          throw TarException.header('Invalid PAX Record');
-        }
-
-        sparseMap.add(value);
-      } else if (supportedPaxHeaders.contains(key)) {
-        // Ignore unrecognized headers to avoid unbounded growth of the global
-        // header map.
-        map[key] = value;
-      }
-
-      // Skip over value and trailing newline
-      offset += lengthOfValue + 1;
-    }
-
-    if (sparseMap.isNotEmpty) {
-      map[paxGNUSparseMap] = sparseMap.join(',');
-    }
-
-    if (isGlobal) {
-      _paxHeaders.newGlobals(map);
-    } else {
-      _paxHeaders.newLocals(map);
     }
   }
 
@@ -719,11 +635,137 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
   @override
   String? operator [](Object? key) {
-    return _globalHeaders[key] ?? _localHeaders[key];
+    return _localHeaders[key] ?? _globalHeaders[key];
   }
 
   @override
   Iterable<String> get keys => {..._globalHeaders.keys, ..._localHeaders.keys};
+
+  /// Decodes the content of an extended pax header entry.
+  ///
+  /// Semantically, a [PAX Header][posixPax] is a map with string keys and
+  /// values, where both keys and values are encodes with utf8.
+  ///
+  /// However, [old GNU Versions][gnuSparse00] used to repeat keys to store
+  /// sparse file information in sparse headers. This method will transparently
+  /// rewrite the PAX format of version 0.0 to version 0.1.
+  ///
+  /// [posixPax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
+  /// [gnuSparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
+  void readPaxHeaders(List<int> data, bool isGlobal,
+      {bool ignoreUnknown = true}) {
+    var offset = 0;
+    final map = <String, String>{};
+    final sparseMap = <String>[];
+
+    Never error() => throw TarException.header('Invalid PAX record');
+
+    // the minus one is here because some implementations add another line break
+    // to the end of the record
+    while (offset < data.length) {
+      // At the start of an entry, expect its length which is terminated by a
+      // space char.
+      final space = data.indexOf($space, offset);
+      if (space == -1) break;
+
+      var length = 0;
+      var currentChar = data[offset];
+      var charsInLength = 0;
+      while (currentChar >= $0 && currentChar <= $9) {
+        length = length * 10 + currentChar - $0;
+        charsInLength++;
+        currentChar = data[++offset];
+      }
+
+      if (length == 0) {
+        error();
+      }
+
+      // Skip the whitespace
+      if (currentChar != $space) {
+        error();
+      }
+      offset++;
+
+      // Length also includes the length description and a space we just read
+      final endOfEntry = offset + length - 1 - charsInLength;
+      if (endOfEntry < offset || endOfEntry > data.length) {
+        error();
+      }
+
+      // Read the key
+      final nextEquals = data.indexOf($equal, offset);
+      if (nextEquals == -1 || nextEquals >= endOfEntry) {
+        error();
+      }
+
+      final key = utf8.decode(data.sublist(offset, nextEquals));
+      // Skip over the equals sign
+      offset = nextEquals + 1;
+
+      // Subtract one for trailing newline
+      final endOfValue = endOfEntry - 1;
+      final value = utf8.decode(data.sublist(offset, endOfValue));
+
+      if (!_isValidPaxRecord(key, value)) {
+        error();
+      }
+
+      // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
+      // GNU.sparse.offset and GNU.sparse.numbytes headers.
+      if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
+        if ((sparseMap.length % 2 == 0 && key != paxGNUSparseOffset) ||
+            (sparseMap.length % 2 == 1 && key != paxGNUSparseNumBytes) ||
+            value.contains(',')) {
+          error();
+        }
+
+        sparseMap.add(value);
+      } else if (!ignoreUnknown || supportedPaxHeaders.contains(key)) {
+        // Ignore unrecognized headers to avoid unbounded growth of the global
+        // header map.
+        map[key] = value;
+      }
+
+      // Skip over value
+      offset = endOfValue;
+      // and the trailing newline
+      if (data[offset] != $lf) {
+        throw TarException('Invalid PAX Record (missing trailing newline)');
+      }
+      offset++;
+    }
+
+    if (sparseMap.isNotEmpty) {
+      map[paxGNUSparseMap] = sparseMap.join(',');
+    }
+
+    if (isGlobal) {
+      newGlobals(map);
+    } else {
+      newLocals(map);
+    }
+  }
+
+  /// Checks whether [key], [value] is a valid entry in a pax header.
+  ///
+  /// This is adopted from the Golang tar reader (`validPAXRecord`), which says
+  /// that "Keys and values should be UTF-8, but the number of bad writers out
+  /// there forces us to be a more liberal."
+  /// These limitations aren't documented in the PAX standard.
+  static bool _isValidPaxRecord(String key, String value) {
+    if (key.isEmpty || key.contains('=')) return false;
+
+    switch (key) {
+      case paxPath:
+      case paxLinkpath:
+      case paxUname:
+      case paxGname:
+        return !value.codeUnits.contains(0);
+      default:
+        return !key.codeUnits.contains(0);
+    }
+  }
 }
 
 /// Event-sink tracking the length of emitted tar entry streams.

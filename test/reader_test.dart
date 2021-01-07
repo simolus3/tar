@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:tar/src/reader.dart';
 import 'package:test/test.dart';
 
 import 'package:tar/tar.dart' as tar;
@@ -45,6 +46,62 @@ void main() {
       final reader =
           tar.Reader(File('reference/bad/truncated_in_body.tar').openRead());
       expect(reader.moveNext(), throwsA(expectedException));
+    });
+  });
+
+  group('PAX headers', () {
+    test('locals overrwrite globals', () {
+      final header = PaxHeaders()
+        ..newGlobals({'foo': 'foo', 'bar': 'bar'})
+        ..newLocals({'foo': 'local'});
+
+      expect(header.keys, containsAll(<String>['foo', 'bar']));
+      expect(header['foo'], 'local');
+    });
+
+    group('parse', () {
+      final mediumName = 'CD' * 50;
+      final longName = 'AB' * 100;
+
+      final tests = [
+        ['6 k=v\n\n', 'k', 'v', true],
+        ['19 path=/etc/hosts\n', 'path', '/etc/hosts', true],
+        ['210 path=' + longName + '\nabc', 'path', longName, true],
+        ['110 path=' + mediumName + '\n', 'path', mediumName, true],
+        ['9 foo=ba\n', 'foo', 'ba', true],
+        ['11 foo=bar\n\x00', 'foo', 'bar', true],
+        ['18 foo=b=\nar=\n==\x00\n', 'foo', 'b=\nar=\n==\x00', true],
+        ['27 foo=hello9 foo=ba\nworld\n', 'foo', 'hello9 foo=ba\nworld', true],
+        ['27 ☺☻☹=日a本b語ç\n', '☺☻☹', '日a本b語ç', true],
+        ['17 \x00hello=\x00world\n', '', '', false],
+        ['1 k=1\n', '', '', false],
+        ['6 k~1\n', '', '', false],
+        ['6 k=1 ', '', '', false],
+        ['632 k=1\n', '', '', false],
+        ['16 longkeyname=hahaha\n', '', '', false],
+        ['3 somelongkey=\n', '', '', false],
+        ['50 tooshort=\n', '', '', false],
+      ];
+
+      for (final input in tests) {
+        test('parsePax(${input[0]})', () {
+          final headers = PaxHeaders();
+
+          final raw = utf8.encode(input[0] as String);
+          final key = input[1];
+          final value = input[2];
+          final isValid = input[3] as bool;
+
+          if (isValid) {
+            headers.readPaxHeaders(raw, false, ignoreUnknown: false);
+            expect(headers.keys, [key]);
+            expect(headers[key], value);
+          } else {
+            expect(() => headers.readPaxHeaders(raw, false),
+                throwsA(isA<tar.TarException>()));
+          }
+        });
+      }
     });
   });
 }
