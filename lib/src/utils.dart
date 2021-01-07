@@ -170,6 +170,8 @@ int numBlocks(int fileSize) {
   return fileSize ~/ blockSize + 1;
 }
 
+int nextBlockSize(int fileSize) => numBlocks(fileSize) * blockSize;
+
 extension ToTyped on List<int> {
   Uint8List asUint8List() {
     // Flow analysis doesn't work on this.

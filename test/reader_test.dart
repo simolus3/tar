@@ -32,18 +32,44 @@ void main() {
     );
   });
 
-  test('throws on unexpected EOF', () {
-    final tarEntries =
-        File('reference/bad_truncated.tar').openRead().transform(tar.reader);
+  group('throws on unexpected EoF', () {
+    final expectedException = isA<tar.TarException>()
+        .having((e) => e.message, 'message', contains('Unexpected end'));
 
-    expect(
-      tarEntries,
-      emitsError(
-        isA<StateError>()
-            .having((e) => e.message, 'message', contains('Unexpected end')),
-      ),
-    );
-  }, skip: 'https://github.com/simolus3/tar/issues/4');
+    group('at header', () {
+      Stream<List<int>> open() {
+        return File('reference/bad/truncated_in_header.tar').openRead();
+      }
+
+      test('via the stream transformer', () async {
+        final entries = open().transform(tar.reader);
+        expect(entries, emitsError(expectedException));
+      });
+
+      test('via the reader', () {
+        final reader = tar.Reader(open());
+
+        expect(reader.next(), throwsA(expectedException));
+      });
+    });
+
+    group('in content', () {
+      Stream<List<int>> open() {
+        return File('reference/bad/truncated_in_body.tar').openRead();
+      }
+
+      test('via the stream transformer', () async {
+        final entries = open().transform(tar.reader);
+        expect(entries, emitsError(expectedException));
+      });
+
+      test('via the reader', () {
+        final reader = tar.Reader(open());
+
+        expect(reader.next(), throwsA(expectedException));
+      });
+    });
+  });
 }
 
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {

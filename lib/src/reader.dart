@@ -101,8 +101,12 @@ class Reader {
   /// If such file exists, it is returned as a tar [Entry]. Otherwise, the
   /// returned future will complete with `null`.
   Future<Entry?> next() async {
+    // We're reading a new logical file, so clear the local pax headers
+    _paxHeaders.clearLocals();
+
     var gnuLongName = '';
     var gnuLongLink = '';
+    var eofAcceptable = true;
 
     var format =
         Format.ustar | Format.pax | Format.gnu | Format.v7 | Format.star;
@@ -116,18 +120,26 @@ class Reader {
     /// one or more "header files" until it finds a "normal file".
     while (true) {
       if (_skipNext > 0) {
-        await _chunkedStream.read(_skipNext);
+        await _readFullBlock(_skipNext);
         _skipNext = 0;
       }
 
-      final rawHeader = await _chunkedStream.readAsBlock(blockSize);
+      final rawHeader =
+          await _readFullBlock(blockSize, allowEmpty: eofAcceptable);
 
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
-        _seenEof = true;
-        return null;
+        if (eofAcceptable) {
+          _seenEof = true;
+          return null;
+        } else {
+          _unexpectedEof();
+        }
       }
 
+      // We're beginning to read a file, if the tar file ends now something is
+      // wrong
+      eofAcceptable = false;
       format = format.mayOnlyBe(nextHeader.format);
 
       // Check for PAX/GNU special headers and files.
@@ -135,7 +147,7 @@ class Reader {
           nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
         format = format.mayOnlyBe(Format.pax);
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
-        final rawPaxHeaders = await _chunkedStream.readAsBlock(paxHeaderSize);
+        final rawPaxHeaders = await _readFullBlock(paxHeaderSize);
 
         _readPaxHeaders(
             rawPaxHeaders, nextHeader.typeFlag == TypeFlag.xGlobalHeader);
@@ -146,8 +158,8 @@ class Reader {
       } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
           nextHeader.typeFlag == TypeFlag.gnuLongName) {
         format = format.mayOnlyBe(Format.gnu);
-        final realName = await _chunkedStream.readAsBlock(
-            _checkSpecialSize(numBlocks(nextHeader.size) * blockSize));
+        final realName = await _readFullBlock(
+            _checkSpecialSize(nextBlockSize(nextHeader.size)));
 
         final readName = realName.readString(0, realName.length);
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
@@ -181,7 +193,7 @@ class Reader {
           format = format.mayOnlyBe(Format.ustar);
         }
         nextHeader.format = format;
-        return Entry(nextHeader, content);
+        return Entry(nextHeader, _publishStream(content, nextHeader.size));
       }
     }
   }
@@ -193,6 +205,21 @@ class Reader {
     }
 
     return size;
+  }
+
+  Never _unexpectedEof() {
+    throw TarException.header('Unexpected end of file');
+  }
+
+  /// Reads a block with the requested [size], or throws an unexpected EoF
+  /// exception.
+  Future<Uint8List> _readFullBlock(int size, {bool allowEmpty = false}) async {
+    final block = await _chunkedStream.readAsBlock(size);
+    if (block.length != size && !(allowEmpty && block.isEmpty)) {
+      _unexpectedEof();
+    }
+
+    return block;
   }
 
   /// Reads the next block header and assumes that the underlying reader
@@ -262,6 +289,15 @@ class Reader {
         return _chunkedStream.substream(header.size);
       }
     }
+  }
+
+  /// Publishes an library-internal stream for users.
+  ///
+  /// This adds a check to ensure that the stream we're exposing has the
+  /// expected length.
+  Stream<List<int>> _publishStream(Stream<List<int>> stream, int length) {
+    return Stream.eventTransformed(
+        stream, (sink) => _OutgoingStreamGuard(length, sink));
   }
 
   /// Skips to the next block after reading [readSize] bytes from the beginning
@@ -634,4 +670,47 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
   @override
   Iterable<String> get keys => {..._globalHeaders.keys, ..._localHeaders.keys};
+}
+
+/// Event-sink tracking the length of emitted tar entry streams.
+///
+/// [ChunkedStreamIterator.substream] might return a stream shorter than
+/// expected. That indicates an invalid tar file though, since the correct size
+/// is stored in the header.
+class _OutgoingStreamGuard extends EventSink<List<int>> {
+  final int expectedSize;
+  final EventSink<List<int>> out;
+
+  int emittedSize = 0;
+  bool hadError = false;
+
+  _OutgoingStreamGuard(this.expectedSize, this.out);
+
+  @override
+  void add(List<int> event) {
+    emittedSize += event.length;
+    // We checks limiting the length of outgoing streams. If the stream is
+    // larger than expected, that's a bug in pkg:tar.
+    assert(emittedSize <= expectedSize);
+
+    out.add(event);
+  }
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {
+    hadError = true;
+    out.addError(error, stackTrace);
+  }
+
+  @override
+  void close() {
+    // If the stream stopped after an error, the user is already aware that
+    // something is wrong.
+    if (emittedSize < expectedSize && !hadError) {
+      out.addError(
+          TarException('Unexpected end of tar file'), StackTrace.current);
+    }
+
+    out.close();
+  }
 }
