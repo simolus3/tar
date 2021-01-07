@@ -18,7 +18,7 @@ import 'package:tar/tar.dart' as tar;
 Future<void> main() async {
   final reader = tar.Reader(File('file.tar').openRead());
 
-  while (await reader.next()) {
+  while (await reader.moveNext()) {
     // Use reader.header to see the header of the current tar entry
     print(reader.header.name);
     // And reader.contents to read the content of the current entry as a stream

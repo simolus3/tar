@@ -7,7 +7,7 @@ Future<void> main() async {
   // Start reading a tar file
   final reader = tar.Reader(File('reference/gnu.tar').openRead());
 
-  while (await reader.next()) {
+  while (await reader.moveNext()) {
     final header = reader.header;
     print('${header.name}: ');
 

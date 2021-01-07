@@ -20,7 +20,7 @@ import 'utils.dart';
 /// individual file contents in order to minimize the amount of memory needed
 /// to read each archive where possible.
 @sealed
-class Reader {
+class Reader implements StreamIterator<Header> {
   /// A chunked stream iterator to enable us to get our data.
   final ChunkedStreamIterator<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
@@ -53,7 +53,8 @@ class Reader {
   Header get header {
     final header = _header;
     if (header == null) {
-      throw StateError('Invalid call to Reader.header, did you call next()?');
+      throw StateError(
+          'Invalid call to Reader.header, did you call moveNext()?');
     }
     return header;
   }
@@ -69,10 +70,14 @@ class Reader {
   Stream<List<int>> get contents {
     final contents = _contents;
     if (contents == null) {
-      throw StateError('Invalid call to Reader.contents, did you call next()?');
+      throw StateError(
+          'Invalid call to Reader.contents, did you call moveNext()?');
     }
     return contents;
   }
+
+  @override
+  Header get current => header;
 
   /// Reads the tar stream up until the beginning of the next logical file.
   ///
@@ -82,7 +87,8 @@ class Reader {
   /// If no such file exists, the future will complete with `false`.
   /// The future might complete with an [TarException] if the tar stream is
   /// malformed or ends unexpectedly.
-  Future<bool> next() async {
+  @override
+  Future<bool> moveNext() async {
     await _prepareToReadHeaders();
 
     // We're reading a new logical file, so clear the local pax headers
@@ -190,13 +196,18 @@ class Reader {
     }
   }
 
+  @override
+  Future<void> cancel() {
+    return _chunkedStream.cancel();
+  }
+
   /// Utility function for quickly iterating through all entries in [tarStream].
   static Future<void> forEach(
       Stream<List<int>> tarStream,
       FutureOr<void> Function(Header header, Stream<List<int>> contents)
           action) async {
     final reader = Reader(tarStream);
-    while (await reader.next()) {
+    while (await reader.moveNext()) {
       await action(reader.header, reader.contents);
     }
   }
@@ -210,8 +221,8 @@ class Reader {
   ///    * otherwise, throws a [StateError]
   Future<void> _prepareToReadHeaders() async {
     if (_isReadingHeaders) {
-      throw StateError('Concurrent call to Reader.next() detected. \n'
-          'Please await all calls to Reader.next().');
+      throw StateError('Concurrent call to Reader.moveNext() detected. \n'
+          'Please await all calls to Reader.moveNext().');
     }
     _isReadingHeaders = true;
 
@@ -219,10 +230,10 @@ class Reader {
     if (contents != null) {
       if (_listenedToContents) {
         throw StateError(
-            'Illegal call to Reader.next() while a previous stream was '
+            'Illegal call to Reader.moveNext() while a previous stream was '
             'active.\n'
             'When listening to Reader.contents, make sure the stream is '
-            'complete or cancelled before calling Reader.next() again.');
+            'complete or cancelled before calling Reader.moveNext() again.');
       } else {
         await contents.drain<void>();
         assert(!_listenedToContents);

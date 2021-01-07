@@ -23,7 +23,7 @@ void main() {
         tar.Reader(File('reference/headers/evil_large_header.tar').openRead());
 
     expect(
-      reader.next(),
+      reader.moveNext(),
       throwsA(
         isFormatException.having((e) => e.message, 'message',
             contains('hidden entry with an invalid size')),
@@ -38,13 +38,13 @@ void main() {
     test('at header', () {
       final reader =
           tar.Reader(File('reference/bad/truncated_in_header.tar').openRead());
-      expect(reader.next(), throwsA(expectedException));
+      expect(reader.moveNext(), throwsA(expectedException));
     });
 
     test('in content', () {
       final reader =
           tar.Reader(File('reference/bad/truncated_in_body.tar').openRead());
-      expect(reader.next(), throwsA(expectedException));
+      expect(reader.moveNext(), throwsA(expectedException));
     });
   });
 }
@@ -69,7 +69,7 @@ Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
 
 Future<void> _testLargeFile(String file) async {
   final reader = tar.Reader(File(file).openRead());
-  await reader.next();
+  await reader.moveNext();
 
   expect(reader.header.size, 9663676416);
 }
