@@ -16,18 +16,35 @@ import 'dart:io';
 import 'package:tar/tar.dart' as tar;
 
 Future<void> main() async {
-  final tarFile = File('file.tar')
-       .openRead()
-       .transform(tar.reader);
+  final reader = tar.Reader(File('file.tar').openRead());
 
-  await for (final entry in tarFile) {
-    print(entry.name);
-    print(await entry.transform(utf8.decoder).first);
+  while (await reader.next()) {
+    // Use reader.header to see the header of the current tar entry
+    print(reader.header.name);
+    // And reader.contents to read the content of the current entry as a stream
+    print(await reader.contents.transform(utf8.decoder).first);
   }
 }
 ```
 
 To read `.tar.gz` files, transform the stream with `gzip.decoder` first.
+
+To easily go through all entries in a tar file, use `Reader.forEach`:
+
+```dart
+Future<void> main() async {
+  final inputStream = File('file.tar').openRead();
+
+  await Reader.forEach(inputStream, (header, contents) {
+    print(header.name);
+    print(await contents.transform(utf8.decoder).first);
+  });
+}
+```
+
+__Warning__: Since the reader is backed by a single stream, concurrent calls to
+`read` are not allowed! Similarly, if you're reading from an entry's `contents`,
+make sure to fully drain the stream before calling `read()` again.
 
 ## Writing
 

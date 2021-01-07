@@ -5,15 +5,15 @@ import 'package:tar/tar.dart' as tar;
 
 Future<void> main() async {
   // Start reading a tar file
-  final tarFile = File('reference/gnu.tar').openRead().transform(tar.reader);
+  final reader = tar.Reader(File('reference/gnu.tar').openRead());
 
-  await for (final entry in tarFile) {
-    print('${entry.name}: ');
+  while (await reader.next()) {
+    final header = reader.header;
+    print('${header.name}: ');
 
-    if (entry.type == tar.TypeFlag.reg) {
-      // Tar entries are streams emitting their content, so we can get their
-      // string content like this:
-      print(await entry.transform(utf8.decoder).first);
+    // Print the output if it's a regular file
+    if (header.typeFlag == tar.TypeFlag.reg) {
+      print(await reader.contents.transform(utf8.decoder).first);
     }
   }
 

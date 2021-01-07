@@ -19,13 +19,12 @@ void main() {
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
   test('does not read large headers', () {
-    final tarEntries = File('reference/headers/evil_large_header.tar')
-        .openRead()
-        .transform(tar.reader);
+    final reader =
+        tar.Reader(File('reference/headers/evil_large_header.tar').openRead());
 
     expect(
-      tarEntries,
-      emitsError(
+      reader.next(),
+      throwsA(
         isFormatException.having((e) => e.message, 'message',
             contains('hidden entry with an invalid size')),
       ),
@@ -36,47 +35,26 @@ void main() {
     final expectedException = isA<tar.TarException>()
         .having((e) => e.message, 'message', contains('Unexpected end'));
 
-    group('at header', () {
-      Stream<List<int>> open() {
-        return File('reference/bad/truncated_in_header.tar').openRead();
-      }
-
-      test('via the stream transformer', () async {
-        final entries = open().transform(tar.reader);
-        expect(entries, emitsError(expectedException));
-      });
-
-      test('via the reader', () {
-        final reader = tar.Reader(open());
-
-        expect(reader.next(), throwsA(expectedException));
-      });
+    test('at header', () {
+      final reader =
+          tar.Reader(File('reference/bad/truncated_in_header.tar').openRead());
+      expect(reader.next(), throwsA(expectedException));
     });
 
-    group('in content', () {
-      Stream<List<int>> open() {
-        return File('reference/bad/truncated_in_body.tar').openRead();
-      }
-
-      test('via the stream transformer', () async {
-        final entries = open().transform(tar.reader);
-        expect(entries, emitsError(expectedException));
-      });
-
-      test('via the reader', () {
-        final reader = tar.Reader(open());
-
-        expect(reader.next(), throwsA(expectedException));
-      });
+    test('in content', () {
+      final reader =
+          tar.Reader(File('reference/bad/truncated_in_body.tar').openRead());
+      expect(reader.next(), throwsA(expectedException));
     });
   });
 }
 
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
-  final tarEntries = File(file).openRead().transform(tar.reader);
-  final entries = {
-    await for (final entry in tarEntries) entry.name: await entry.readFully()
-  };
+  final entries = <String, Uint8List>{};
+
+  await tar.Reader.forEach(File(file).openRead(), (header, contents) async {
+    entries[header.name] = await contents.readFully();
+  });
 
   final testEntry = entries['reference/res/test.txt']!;
   expect(utf8.decode(testEntry), 'Test file content!\n');
@@ -89,11 +67,11 @@ Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
   }
 }
 
-void _testLargeFile(String file) {
-  final entries = File(file).openRead().transform(tar.reader);
+Future<void> _testLargeFile(String file) async {
+  final reader = tar.Reader(File(file).openRead());
+  await reader.next();
 
-  expect(entries,
-      emits(isA<tar.Entry>().having((e) => e.size, 'size', 9663676416)));
+  expect(reader.header.size, 9663676416);
 }
 
 extension on Stream<List<int>> {

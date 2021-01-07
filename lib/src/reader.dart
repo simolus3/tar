@@ -9,57 +9,11 @@ import 'package:meta/meta.dart';
 import 'package:typed_data/typed_buffers.dart';
 
 import 'constants.dart';
-import 'entry.dart';
 import 'exception.dart';
 import 'format.dart';
 import 'header.dart';
 import 'sparse.dart';
 import 'utils.dart';
-
-class _TarStreamTransformer extends StreamTransformerBase<List<int>, Entry> {
-  const _TarStreamTransformer();
-
-  @override
-  Stream<Entry> bind(Stream<List<int>> stream) async* {
-    final reader = Reader(stream);
-    var entry = await reader.next();
-
-    while (entry != null) {
-      yield entry;
-      entry = await reader.next();
-    }
-
-    if (!reader.hasSeenEof) {
-      throw TarException('Unexpected end of tar stream');
-    }
-  }
-}
-
-/// A stream transformer turning byte-streams into a stream of tar entries.
-///
-/// You can iterate over entries in a tar archive like this:
-///
-/// ```dart
-/// import 'dart:io';
-/// import 'package:tar/tar.dart' as tar;
-///
-/// Future<void> main() async {
-///   final tarFile = File('file.tar.gz')
-///        .openRead()
-///        // use gzip.decoder if you're reading .tar.gz files
-///        .transform(gzip.decoder)
-///        .transform(tar.reader);
-///
-///  await for (final entry in tarFile) {
-///    print(entry.name);
-///    print(await entry.transform(utf8.decoder).first);
-///  }
-/// }
-/// ```
-///
-/// For more control over when entries are read, consider using a pull-based
-/// [Reader] instance and [Reader.next].
-const reader = _TarStreamTransformer();
 
 /// [Reader] provides sequential access to the TAR files in a TAR archive.
 /// It is designed to read from a stream and to spit out substreams for
@@ -72,10 +26,15 @@ class Reader {
   final PaxHeaders _paxHeaders = PaxHeaders();
   final int _maxSpecialFileSize;
 
-  bool _seenEof = false;
-
   /// Skip the next [_skipNext] elements when reading in the stream.
   int _skipNext = 0;
+
+  Header? _header;
+  Stream<List<int>>? _contents;
+  bool _listenedToContents = false;
+
+  /// Whether we're in the process of reading tar headers.
+  bool _isReadingHeaders = false;
 
   /// Creates a tar reader reading from the raw [tarStream].
   ///
@@ -90,17 +49,42 @@ class Reader {
       : _chunkedStream = ChunkedStreamIterator(tarStream),
         _maxSpecialFileSize = maxSpecialFileSize;
 
-  /// Whether the end of the input stream appeared at an expected location.
-  ///
-  /// Users are encouraged to check this after [next] returned `null` for the
-  /// first time. If it returns `false`, the tar file ended unexpectedly.
-  bool get hasSeenEof => _seenEof;
+  /// The current [Header] of the active tar entry.
+  Header get header {
+    final header = _header;
+    if (header == null) {
+      throw StateError('Invalid call to Reader.header, did you call next()?');
+    }
+    return header;
+  }
 
-  /// Reads the tar file up until the beginning of the next logical file.
+  /// The content stream of the active tar entry.
   ///
-  /// If such file exists, it is returned as a tar [Entry]. Otherwise, the
-  /// returned future will complete with `null`.
-  Future<Entry?> next() async {
+  /// This is a single-subscription stream backed by the original stream used to
+  /// create this [Reader].
+  /// When listening on [contents], the stream needs to be fully drained before
+  /// the next call to [next]. It's acceptable to not listen to [contents] at
+  /// all before calling [next] again. In that case, this library will take care
+  /// of draining the stream to get to the next entry.
+  Stream<List<int>> get contents {
+    final contents = _contents;
+    if (contents == null) {
+      throw StateError('Invalid call to Reader.contents, did you call next()?');
+    }
+    return contents;
+  }
+
+  /// Reads the tar stream up until the beginning of the next logical file.
+  ///
+  /// If such file exists, the returned future will complete with `true`. The
+  /// entries header can then be accessed using [header] and its content can be
+  /// read using [contents].
+  /// If no such file exists, the future will complete with `false`.
+  /// The future might complete with an [TarException] if the tar stream is
+  /// malformed or ends unexpectedly.
+  Future<bool> next() async {
+    await _prepareToReadHeaders();
+
     // We're reading a new logical file, so clear the local pax headers
     _paxHeaders.clearLocals();
 
@@ -130,8 +114,11 @@ class Reader {
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
         if (eofAcceptable) {
-          _seenEof = true;
-          return null;
+          _header = null;
+          _contents = null;
+          _listenedToContents = false;
+          _isReadingHeaders = false;
+          return false;
         } else {
           _unexpectedEof();
         }
@@ -193,7 +180,52 @@ class Reader {
           format = format.mayOnlyBe(Format.ustar);
         }
         nextHeader.format = format;
-        return Entry(nextHeader, _publishStream(content, nextHeader.size));
+
+        _header = nextHeader;
+        _contents = _publishStream(content, nextHeader.size);
+        _listenedToContents = false;
+        _isReadingHeaders = false;
+        return true;
+      }
+    }
+  }
+
+  /// Utility function for quickly iterating through all entries in [tarStream].
+  static Future<void> forEach(
+      Stream<List<int>> tarStream,
+      FutureOr<void> Function(Header header, Stream<List<int>> contents)
+          action) async {
+    final reader = Reader(tarStream);
+    while (await reader.next()) {
+      await action(reader.header, reader.contents);
+    }
+  }
+
+  /// Ensures that this reader can safely read headers now.
+  ///
+  /// This methods prevents:
+  ///  * concurrent calls to [next]
+  ///  * a call to [next] while a stream is active:
+  ///    * if [contents] has never been listened to, we drain the stream
+  ///    * otherwise, throws a [StateError]
+  Future<void> _prepareToReadHeaders() async {
+    if (_isReadingHeaders) {
+      throw StateError('Concurrent call to Reader.next() detected. \n'
+          'Please await all calls to Reader.next().');
+    }
+    _isReadingHeaders = true;
+
+    final contents = _contents;
+    if (contents != null) {
+      if (_listenedToContents) {
+        throw StateError(
+            'Illegal call to Reader.next() while a previous stream was '
+            'active.\n'
+            'When listening to Reader.contents, make sure the stream is '
+            'complete or cancelled before calling Reader.next() again.');
+      } else {
+        await contents.drain<void>();
+        assert(!_listenedToContents);
       }
     }
   }
@@ -294,10 +326,21 @@ class Reader {
   /// Publishes an library-internal stream for users.
   ///
   /// This adds a check to ensure that the stream we're exposing has the
-  /// expected length.
+  /// expected length. It also sets the [_listenedToContents] field when the
+  /// stream starts and resets it when it's done.
   Stream<List<int>> _publishStream(Stream<List<int>> stream, int length) {
-    return Stream.eventTransformed(
-        stream, (sink) => _OutgoingStreamGuard(length, sink));
+    return Stream.eventTransformed(stream, (sink) {
+      _listenedToContents = true;
+      return _OutgoingStreamGuard(
+        length,
+        sink,
+        // Reset state when the stream is done.
+        () {
+          _contents = null;
+          _listenedToContents = false;
+        },
+      );
+    });
   }
 
   /// Skips to the next block after reading [readSize] bytes from the beginning
@@ -680,11 +723,12 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 class _OutgoingStreamGuard extends EventSink<List<int>> {
   final int expectedSize;
   final EventSink<List<int>> out;
+  void Function() onDone;
 
   int emittedSize = 0;
   bool hadError = false;
 
-  _OutgoingStreamGuard(this.expectedSize, this.out);
+  _OutgoingStreamGuard(this.expectedSize, this.out, this.onDone);
 
   @override
   void add(List<int> event) {
@@ -704,6 +748,8 @@ class _OutgoingStreamGuard extends EventSink<List<int>> {
 
   @override
   void close() {
+    onDone();
+
     // If the stream stopped after an error, the user is already aware that
     // something is wrong.
     if (emittedSize < expectedSize && !hadError) {
