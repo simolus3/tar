@@ -19,6 +19,43 @@ void main() {
   test('ustar', () => _testWith('reference/ustar.tar'));
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
+  test('can skip tar files', () async {
+    final input = File('reference/posix.tar').openRead();
+    final reader = tar.Reader(input);
+
+    expect(await reader.moveNext(), isTrue);
+    expect(await reader.moveNext(), isTrue);
+    expect(reader.header.name, 'reference/res/subdirectory_with_a_long_name/');
+  });
+
+  test('getters throw before moveNext() is called', () {
+    final reader = tar.Reader(const Stream<Never>.empty());
+
+    expect(() => reader.contents, throwsStateError);
+    expect(() => reader.header, throwsStateError);
+    expect(() => reader.current, throwsStateError);
+  });
+
+  test("can't use next() concurrently", () {
+    final reader = tar.Reader(Stream.fromFuture(
+        Future.delayed(const Duration(seconds: 2), () => <int>[])));
+
+    expect(reader.moveNext(), completion(isFalse));
+    expect(() => reader.moveNext(), throwsStateError);
+    return reader.cancel();
+  });
+
+  test("can't use next() while a stream is active", () async {
+    final input = File('reference/posix.tar').openRead();
+    final reader = tar.Reader(input);
+
+    expect(await reader.moveNext(), isTrue);
+    reader.contents.listen((event) {}).pause();
+
+    expect(() => reader.moveNext(), throwsStateError);
+    await reader.cancel();
+  });
+
   test('does not read large headers', () {
     final reader =
         tar.Reader(File('reference/headers/evil_large_header.tar').openRead());
