@@ -8,7 +8,7 @@ import 'format.dart';
 import 'utils.dart';
 
 @sealed
-abstract class Header {
+abstract class TarHeader {
   /// Type of header entry. In the V7 TAR format, this field was known as the
   /// link flag.
   TypeFlag get typeFlag;
@@ -53,7 +53,7 @@ abstract class Header {
   int get devMinor;
 
   /// The TAR format of the header.
-  Format get format;
+  TarFormat get format;
 
   /// Checks if this header indicates that the file will have content.
   bool get hasContent {
@@ -70,9 +70,9 @@ abstract class Header {
     }
   }
 
-  factory Header({
+  factory TarHeader({
     required String name,
-    Format? format,
+    TarFormat? format,
     TypeFlag? typeFlag,
     DateTime? modified,
     String? linkName,
@@ -90,7 +90,7 @@ abstract class Header {
     return HeaderImpl.internal(
       name: name,
       modified: modified ?? DateTime.fromMillisecondsSinceEpoch(0),
-      format: format ?? Format.pax,
+      format: format ?? TarFormat.pax,
       typeFlag: typeFlag ?? TypeFlag.reg,
       linkName: linkName,
       mode: mode,
@@ -106,11 +106,11 @@ abstract class Header {
     );
   }
 
-  Header._();
+  TarHeader._();
 }
 
 @internal
-class HeaderImpl extends Header {
+class HeaderImpl extends TarHeader {
   TypeFlag internalTypeFlag;
 
   @override
@@ -153,7 +153,7 @@ class HeaderImpl extends Header {
   int devMinor;
 
   @override
-  Format format;
+  TarFormat format;
 
   @override
   TypeFlag get typeFlag {
@@ -206,7 +206,7 @@ class HeaderImpl extends Header {
       throw TarException.header('Indicates an invalid size of $size');
     }
 
-    if (format.isValid() && format != Format.v7) {
+    if (format.isValid() && format != TarFormat.v7) {
       // If it's a valid header that is not of the v7 format, it will have the
       // USTAR fields
       header
@@ -217,19 +217,19 @@ class HeaderImpl extends Header {
 
       // Prefix to the file name
       var prefix = '';
-      if (format.has(Format.ustar) || format.has(Format.pax)) {
+      if (format.has(TarFormat.ustar) || format.has(TarFormat.pax)) {
         prefix = headerBlock.readString(345, 155);
 
         if (headerBlock.any(isNotAscii)) {
-          header.format = format.mayOnlyBe(Format.pax);
+          header.format = format.mayOnlyBe(TarFormat.pax);
         }
-      } else if (format.has(Format.star)) {
+      } else if (format.has(TarFormat.star)) {
         prefix = headerBlock.readString(345, 131);
         header
           ..accessed = secondsSinceEpoch(headerBlock.readNumeric(476, 12))
           ..changed = secondsSinceEpoch(headerBlock.readNumeric(488, 12));
-      } else if (format.has(Format.gnu)) {
-        header.format = Format.gnu;
+      } else if (format.has(TarFormat.gnu)) {
+        header.format = TarFormat.gnu;
 
         if (headerBlock[345] != 0) {
           header.accessed = secondsSinceEpoch(headerBlock.readNumeric(345, 12));
@@ -304,7 +304,7 @@ class HeaderImpl extends Header {
 /// Checks that [rawHeader] represents a valid tar header based on the
 /// checksum, and then attempts to guess the specific format based
 /// on magic values. If the checksum fails, then an error is thrown.
-Format _getFormat(Uint8List rawHeader) {
+TarFormat _getFormat(Uint8List rawHeader) {
   final checksum = rawHeader.readOctal(checksumOffset, checksumLength);
 
   // Modern TAR archives use the unsigned checksum, but we check the signed
@@ -317,16 +317,16 @@ Format _getFormat(Uint8List rawHeader) {
   final hasUstarMagic = rawHeader.matchesHeader(magicUstar);
   if (hasUstarMagic) {
     return rawHeader.matchesHeader(trailerStar, offset: starTrailerOffset)
-        ? Format.star
-        : Format.ustar | Format.pax;
+        ? TarFormat.star
+        : TarFormat.ustar | TarFormat.pax;
   }
 
   if (rawHeader.matchesHeader(magicGnu) &&
       rawHeader.matchesHeader(versionGnu, offset: versionOffset)) {
-    return Format.gnu;
+    return TarFormat.gnu;
   }
 
-  return Format.v7;
+  return TarFormat.v7;
 }
 
 extension _ReadPaxHeaders on Map<String, String> {

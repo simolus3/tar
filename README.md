@@ -13,10 +13,10 @@ To read entries from a tar file, use
 
 ```dart
 import 'dart:io';
-import 'package:tar/tar.dart' as tar;
+import 'package:tar/tar.dart';
 
 Future<void> main() async {
-  final reader = tar.Reader(File('file.tar').openRead());
+  final reader = TarReader(File('file.tar').openRead());
 
   while (await reader.moveNext()) {
     // Use reader.header to see the header of the current tar entry
@@ -35,7 +35,7 @@ To easily go through all entries in a tar file, use `Reader.forEach`:
 Future<void> main() async {
   final inputStream = File('file.tar').openRead();
 
-  await Reader.forEach(inputStream, (header, contents) {
+  await TarReader.forEach(inputStream, (header, contents) {
     print(header.name);
     print(await contents.transform(utf8.decoder).first);
   });
@@ -52,7 +52,7 @@ You can write tar files into a `StreamSink<List<int>>`, such as an `IOSink`:
 
 ```dart
 import 'dart:io';
-import 'package:tar/tar.dart' as tar;
+import 'package:tar/tar.dart';
 
 Future<void> main() async {
   final output = File('test.tar').openWrite();
@@ -65,7 +65,7 @@ Future<void> main() async {
       ),
       utf8.encode('Hello world'),
     ),
-  ).pipe(tar.WritingSink(output));
+  ).pipe(tar.tarWritingSink(output));
 }
 ```
 
@@ -78,11 +78,11 @@ To write `.tar.gz` files, you can again transform the stream twice:
 
 ```dart
 import 'dart:io';
-import 'package:tar/tar.dart' as tar;
+import 'package:tar/tar.dart';
 
 Future<void> write(Stream<tar.Entry> entries) {
   return entries
-      .transform(tar.writer)
+      .transform(tarWriter)
       .transform(gzip.encoder)
       .pipe(File('output.tar.gz').openWrite())
 }

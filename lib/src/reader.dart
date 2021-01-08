@@ -15,12 +15,12 @@ import 'header.dart';
 import 'sparse.dart';
 import 'utils.dart';
 
-/// [Reader] provides sequential access to the TAR files in a TAR archive.
+/// [TarReader] provides sequential access to the TAR files in a TAR archive.
 /// It is designed to read from a stream and to spit out substreams for
 /// individual file contents in order to minimize the amount of memory needed
 /// to read each archive where possible.
 @sealed
-class Reader implements StreamIterator<Header> {
+class TarReader implements StreamIterator<TarHeader> {
   /// A chunked stream iterator to enable us to get our data.
   final ChunkedStreamIterator<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
@@ -29,7 +29,7 @@ class Reader implements StreamIterator<Header> {
   /// Skip the next [_skipNext] elements when reading in the stream.
   int _skipNext = 0;
 
-  Header? _header;
+  TarHeader? _header;
   Stream<List<int>>? _contents;
   bool _listenedToContents = false;
 
@@ -44,13 +44,13 @@ class Reader implements StreamIterator<Header> {
   /// buffered in the parser to properly read the following tar entries. To
   /// avoid memory-based denial-of-service attacks, this library limits their
   /// maximum length. Changing the default of 2 KiB is rarely necessary.
-  Reader(Stream<List<int>> tarStream,
+  TarReader(Stream<List<int>> tarStream,
       {int maxSpecialFileSize = defaultSpecialLength})
       : _chunkedStream = ChunkedStreamIterator(tarStream),
         _maxSpecialFileSize = maxSpecialFileSize;
 
-  /// The current [Header] of the active tar entry.
-  Header get header {
+  /// The current [TarHeader] of the active tar entry.
+  TarHeader get header {
     final header = _header;
     if (header == null) {
       throw StateError(
@@ -62,7 +62,7 @@ class Reader implements StreamIterator<Header> {
   /// The content stream of the active tar entry.
   ///
   /// This is a single-subscription stream backed by the original stream used to
-  /// create this [Reader].
+  /// create this [TarReader].
   /// When listening on [contents], the stream needs to be fully drained before
   /// the next call to [next]. It's acceptable to not listen to [contents] at
   /// all before calling [next] again. In that case, this library will take care
@@ -77,7 +77,7 @@ class Reader implements StreamIterator<Header> {
   }
 
   @override
-  Header get current => header;
+  TarHeader get current => header;
 
   /// Reads the tar stream up until the beginning of the next logical file.
   ///
@@ -98,8 +98,11 @@ class Reader implements StreamIterator<Header> {
     var gnuLongLink = '';
     var eofAcceptable = true;
 
-    var format =
-        Format.ustar | Format.pax | Format.gnu | Format.v7 | Format.star;
+    var format = TarFormat.ustar |
+        TarFormat.pax |
+        TarFormat.gnu |
+        TarFormat.v7 |
+        TarFormat.star;
 
     HeaderImpl? nextHeader;
 
@@ -138,7 +141,7 @@ class Reader implements StreamIterator<Header> {
       // Check for PAX/GNU special headers and files.
       if (nextHeader.typeFlag == TypeFlag.xHeader ||
           nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
-        format = format.mayOnlyBe(Format.pax);
+        format = format.mayOnlyBe(TarFormat.pax);
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
         final rawPaxHeaders = await _readFullBlock(paxHeaderSize);
 
@@ -150,7 +153,7 @@ class Reader implements StreamIterator<Header> {
         continue;
       } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
           nextHeader.typeFlag == TypeFlag.gnuLongName) {
-        format = format.mayOnlyBe(Format.gnu);
+        format = format.mayOnlyBe(TarFormat.gnu);
         final realName = await _readFullBlock(
             _checkSpecialSize(nextBlockSize(nextHeader.size)));
 
@@ -182,8 +185,8 @@ class Reader implements StreamIterator<Header> {
         final content = await _handleFile(nextHeader, rawHeader);
 
         // Set the final guess at the format
-        if (format.has(Format.ustar) && format.has(Format.pax)) {
-          format = format.mayOnlyBe(Format.ustar);
+        if (format.has(TarFormat.ustar) && format.has(TarFormat.pax)) {
+          format = format.mayOnlyBe(TarFormat.ustar);
         }
         nextHeader.format = format;
 
@@ -204,9 +207,9 @@ class Reader implements StreamIterator<Header> {
   /// Utility function for quickly iterating through all entries in [tarStream].
   static Future<void> forEach(
       Stream<List<int>> tarStream,
-      FutureOr<void> Function(Header header, Stream<List<int>> contents)
+      FutureOr<void> Function(TarHeader header, Stream<List<int>> contents)
           action) async {
-    final reader = Reader(tarStream);
+    final reader = TarReader(tarStream);
     while (await reader.moveNext()) {
       await action(reader.header, reader.contents);
     }
@@ -385,7 +388,7 @@ class Reader implements StreamIterator<Header> {
       return null;
     }
 
-    header.format |= Format.pax;
+    header.format |= TarFormat.pax;
 
     /// Update [header] from GNU sparse PAX headers.
     final possibleName = _paxHeaders[paxGNUSparseName] ?? '';
@@ -490,7 +493,7 @@ class Reader implements StreamIterator<Header> {
   /// Reads the sparse map as stored in GNU's PAX sparse format version 0.1.
   /// The sparse map is stored in the PAX headers and is stored like this:
   /// `offset₀,size₀,offset₁,size₁...`
-  List<SparseEntry> _readGNUSparseMap0x1(Header header) {
+  List<SparseEntry> _readGNUSparseMap0x1(TarHeader header) {
     // Get number of entries, check for integer overflows
     final numEntriesString = _paxHeaders[paxGNUSparseNumBlocks];
     final numEntries =
@@ -546,7 +549,7 @@ class Reader implements StreamIterator<Header> {
     // Make sure that the input format is GNU.
     // Unfortunately, the STAR format also has a sparse header format that uses
     // the same type flag but has a completely different layout.
-    if (header.format != Format.gnu) {
+    if (header.format != TarFormat.gnu) {
       throw TarException.header('Tried to read sparse map of non-GNU header');
     }
 

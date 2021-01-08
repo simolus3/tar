@@ -1,8 +1,8 @@
 import 'package:meta/meta.dart';
 
-/// Handy map to help us translate [Format] values to their names.
+/// Handy map to help us translate [TarFormat] values to their names.
 /// Be sure to keep this consistent with the constant initializers in
-/// [Format].
+/// [TarFormat].
 const _formatNames = {
   1: 'V7',
   2: 'USTAR',
@@ -15,21 +15,21 @@ const _formatNames = {
 ///
 /// This library only supports the V7, USTAR, PAX, GNU, and STAR formats.
 @sealed
-class Format {
+class TarFormat {
   /// The TAR formats are encoded in powers of two in [_value], such that we
   /// can refine our guess via bit operations as we discover more information
   /// about the TAR file.
   /// A value of 0 means that the format is invalid.
   final int _value;
 
-  const Format._internal(this._value);
+  const TarFormat._internal(this._value);
 
   @override
   int get hashCode => _value;
 
   @override
   bool operator ==(Object? other) {
-    if (other is! Format) return false;
+    if (other is! TarFormat) return false;
 
     return _value == other._value;
   }
@@ -47,13 +47,13 @@ class Format {
 
   /// Returns if [other] is a possible resolution of [this].
   ///
-  /// For example, a [Format] with a value of 6 means that we do not have
-  /// enough information to determine if it is [Format.USTAR] or
-  /// [Format.PAX], so either of them could be possible resolutions of
+  /// For example, a [TarFormat] with a value of 6 means that we do not have
+  /// enough information to determine if it is [TarFormat.USTAR] or
+  /// [TarFormat.PAX], so either of them could be possible resolutions of
   /// [this].
-  bool has(Format other) => _value & other._value != 0;
+  bool has(TarFormat other) => _value & other._value != 0;
 
-  /// Returns a new [Format] that signifies that it can be either
+  /// Returns a new [TarFormat] that signifies that it can be either
   /// [this] or [other]'s format.
   ///
   /// **Example:**
@@ -63,11 +63,11 @@ class Format {
   ///
   /// The above code would signify that we have limited [format] to either
   /// the USTAR or PAX format, but need further information to refine the guess.
-  Format operator |(Format other) {
+  TarFormat operator |(TarFormat other) {
     return mayBe(other);
   }
 
-  /// Returns a new [Format] that signifies that it can be either
+  /// Returns a new [TarFormat] that signifies that it can be either
   /// [this] or [other]'s format.
   ///
   /// **Example:**
@@ -78,12 +78,12 @@ class Format {
   ///
   /// The above code would signify that we learnt that in addition to being a
   /// PAX format, it could also be of the USTAR format.
-  Format mayBe(Format? other) {
+  TarFormat mayBe(TarFormat? other) {
     if (other == null) return this;
-    return Format._internal(_value | other._value);
+    return TarFormat._internal(_value | other._value);
   }
 
-  /// Returns a new [Format] that signifies that it can only be [other]'s
+  /// Returns a new [TarFormat] that signifies that it can only be [other]'s
   /// format.
   ///
   /// **Example:**
@@ -97,9 +97,9 @@ class Format {
   /// but later learnt that it can only be the USTAR format.
   ///
   /// If [has(other) == false], [mayOnlyBe] will result in an unknown
-  /// [Format].
-  Format mayOnlyBe(Format other) {
-    return Format._internal(_value & other._value);
+  /// [TarFormat].
+  TarFormat mayOnlyBe(TarFormat other) {
+    return TarFormat._internal(_value & other._value);
   }
 
   /// Returns if this format might be valid.
@@ -133,7 +133,7 @@ class Format {
   /// https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&format=html
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
-  static const v7 = Format._internal(1);
+  static const v7 = TarFormat._internal(1);
 
   /// USTAR (Unix Standard TAR) header format defined in POSIX.1-1988.
   ///
@@ -180,7 +180,7 @@ class Format {
   /// https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&format=html
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   ///	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
-  static const ustar = Format._internal(2);
+  static const ustar = TarFormat._internal(2);
 
   /// PAX header format defined in POSIX.1-2001.
   ///
@@ -198,7 +198,7 @@ class Format {
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
   ///	http://pubs.opengroup.org/onlinepubs/009695399/utilities/pax.html
-  static const pax = Format._internal(4);
+  static const pax = TarFormat._internal(4);
 
   /// GNU header format.
   ///
@@ -249,7 +249,7 @@ class Format {
   ///
   /// Reference:
   ///	https://www.gnu.org/software/tar/manual/html_node/Standard.html
-  static const gnu = Format._internal(8);
+  static const gnu = TarFormat._internal(8);
 
   /// Schily's TAR format, which is incompatible with USTAR.
   /// This does not cover STAR extensions to the PAX format; these fall under
@@ -288,5 +288,5 @@ class Format {
   ///
   /// Reference:
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
-  static const star = Format._internal(16);
+  static const star = TarFormat._internal(16);
 }

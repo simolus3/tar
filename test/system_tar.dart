@@ -23,9 +23,10 @@ Future<Process> startTar(List<String> args) {
   });
 }
 
-Future<Process> writeToTar(List<String> args, Stream<tar.Entry> entries) async {
+Future<Process> writeToTar(
+    List<String> args, Stream<tar.TarEntry> entries) async {
   final proc = await startTar(args);
-  await entries.pipe(tar.createWritingSink(proc.stdin));
+  await entries.pipe(tar.tarWritingSink(proc.stdin));
 
   return proc;
 }

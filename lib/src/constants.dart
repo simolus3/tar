@@ -153,7 +153,7 @@ int typeflagToByte(TypeFlag flag) {
 }
 
 /// Checks if [typeFlag] is allowed in [format].
-bool validateTypeFlag(TypeFlag typeFlag, Format format) {
+bool validateTypeFlag(TypeFlag typeFlag, TarFormat format) {
   switch (typeFlag) {
     case TypeFlag.symlink:
     case TypeFlag.char:
@@ -162,21 +162,21 @@ bool validateTypeFlag(TypeFlag typeFlag, Format format) {
     case TypeFlag.fifo:
     case TypeFlag.reserved:
     case TypeFlag.vendor:
-      return format.has(Format.ustar) ||
-          format.has(Format.pax) ||
-          format.has(Format.gnu) ||
-          format.has(Format.star);
+      return format.has(TarFormat.ustar) ||
+          format.has(TarFormat.pax) ||
+          format.has(TarFormat.gnu) ||
+          format.has(TarFormat.star);
     case TypeFlag.link:
     case TypeFlag.reg:
     case TypeFlag.regA:
       return true;
     case TypeFlag.xHeader:
     case TypeFlag.xGlobalHeader:
-      return format.has(Format.pax);
+      return format.has(TarFormat.pax);
     case TypeFlag.gnuSparse:
     case TypeFlag.gnuLongName:
     case TypeFlag.gnuLongLink:
-      return format.has(Format.gnu);
+      return format.has(TarFormat.gnu);
   }
 }
 

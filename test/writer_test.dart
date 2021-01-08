@@ -9,8 +9,8 @@ import 'system_tar.dart';
 void main() {
   test('writes long file names', () async {
     final name = '${'very' * 30} long name.txt';
-    final withLongName = tar.Entry.data(
-      tar.Header(name: name, mode: 0, size: 0),
+    final withLongName = tar.TarEntry.data(
+      tar.TarHeader(name: name, mode: 0, size: 0),
       Uint8List(0),
     );
 
@@ -20,8 +20,8 @@ void main() {
 
   test('writes headers', () async {
     final date = DateTime.parse('2020-12-30 12:34');
-    final entry = tar.Entry.data(
-      tar.Header(
+    final entry = tar.TarEntry.data(
+      tar.TarHeader(
         name: 'hello_dart.txt',
         mode: int.parse('744', radix: 8),
         size: 0,
@@ -54,8 +54,8 @@ void main() {
     final oneMb = Uint8List(oneMbSize);
     const count = tenGbSize ~/ oneMbSize;
 
-    final entry = tar.Entry(
-      tar.Header(
+    final entry = tar.TarEntry(
+      tar.TarHeader(
         name: 'file.blob',
         mode: 0,
         size: tenGbSize,

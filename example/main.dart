@@ -1,18 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:tar/tar.dart' as tar;
+import 'package:tar/tar.dart';
 
 Future<void> main() async {
   // Start reading a tar file
-  final reader = tar.Reader(File('reference/gnu.tar').openRead());
+  final reader = TarReader(File('reference/gnu.tar').openRead());
 
   while (await reader.moveNext()) {
     final header = reader.header;
     print('${header.name}: ');
 
     // Print the output if it's a regular file
-    if (header.typeFlag == tar.TypeFlag.reg) {
+    if (header.typeFlag == TypeFlag.reg) {
       print(await reader.contents.transform(utf8.decoder).first);
     }
   }
@@ -20,9 +20,9 @@ Future<void> main() async {
   // We can write tar files to any stream sink like this:
   final output = File('test.tar').openWrite();
 
-  await Stream<tar.Entry>.value(
-    tar.Entry.data(
-      tar.Header(
+  await Stream<TarEntry>.value(
+    TarEntry.data(
+      TarHeader(
           name: 'hello_dart.txt',
           mode: int.parse('644', radix: 8),
           userName: 'Dart',
@@ -31,7 +31,7 @@ Future<void> main() async {
     ),
   )
       // transform tar entries back to a byte stream
-      .transform(tar.writer)
+      .transform(tarWriter)
       // and then write that to the file
       .pipe(output);
 }

@@ -10,15 +10,15 @@ import 'constants.dart';
 import 'entry.dart';
 import 'header.dart';
 
-class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
+class _WritingTransformer extends StreamTransformerBase<TarEntry, List<int>> {
   const _WritingTransformer();
 
   @override
-  Stream<List<int>> bind(Stream<Entry> stream) {
+  Stream<List<int>> bind(Stream<TarEntry> stream) {
     // sync because the controller proxies another stream
     final controller = StreamController<List<int>>(sync: true);
     controller.onListen = () {
-      stream.pipe(createWritingSink(controller));
+      stream.pipe(tarWritingSink(controller));
     };
 
     return controller.stream;
@@ -29,7 +29,7 @@ class _WritingTransformer extends StreamTransformerBase<Entry, List<int>> {
 ///
 /// When piping the resulting stream into a [StreamConsumer], consider using
 /// [WritingSink] directly.
-const writer = _WritingTransformer();
+const tarWriter = _WritingTransformer();
 
 /// Create a sink emitting encoded tar files to the [output] sink.
 ///
@@ -54,17 +54,17 @@ const writer = _WritingTransformer();
 /// }
 /// ```
 ///
-/// Note that, if you don't set the [Header.size], outgoing tar entries need to
+/// Note that, if you don't set the [TarHeader.size], outgoing tar entries need to
 /// be buffered once, which decreases performance.
 ///
 /// See also:
-///  - [writer], a stream transformer using this sink
+///  - [tarWriter], a stream transformer using this sink
 ///  - [StreamSink]
-StreamSink<Entry> createWritingSink(StreamSink<List<int>> output) {
+StreamSink<TarEntry> tarWritingSink(StreamSink<List<int>> output) {
   return _WritingSink(output);
 }
 
-class _WritingSink extends StreamSink<Entry> {
+class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
 
   int _paxHeaderCount = 0;
@@ -80,7 +80,7 @@ class _WritingSink extends StreamSink<Entry> {
   Future<void> get done => _done.future;
 
   @override
-  Future<void> add(Entry event) {
+  Future<void> add(TarEntry event) {
     if (_closed) {
       throw StateError('Cannot add event after close was called');
     }
@@ -102,7 +102,7 @@ class _WritingSink extends StreamSink<Entry> {
     }
   }
 
-  Future<void> _safeAdd(Entry event) async {
+  Future<void> _safeAdd(TarEntry event) async {
     final header = event.header;
     var size = header.size;
     Uint8List? bufferedData;
@@ -220,9 +220,9 @@ class _WritingSink extends StreamSink<Entry> {
     });
 
     final paxData = buffer.takeBytes();
-    final file = Entry.data(
+    final file = TarEntry.data(
       HeaderImpl.internal(
-        format: Format.pax,
+        format: TarFormat.pax,
         modified: DateTime.fromMillisecondsSinceEpoch(0),
         name: 'PaxHeader/${_paxHeaderCount++}',
         mode: 0,
@@ -240,7 +240,7 @@ class _WritingSink extends StreamSink<Entry> {
   }
 
   @override
-  Future<void> addStream(Stream<Entry> stream) async {
+  Future<void> addStream(Stream<TarEntry> stream) async {
     await for (final entry in stream) {
       await add(entry);
     }

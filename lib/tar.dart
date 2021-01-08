@@ -1,13 +1,7 @@
 /// Streaming tar implementation for Dart.
 ///
-/// This library is meant to be imported with a prefix:
-///
-/// ```
-/// import 'package:tar/tar.dart' as tar;
-/// ```
-///
-/// To read tar files, see [Reader]. To write tar files, use [WritingSink] or
-/// [writer].
+/// To read tar files, see [TarReader]. To write tar files, use [tarWritingSink]
+///  or [tarWriter].
 library tar;
 
 // For dartdoc.
@@ -18,6 +12,6 @@ export 'src/constants.dart' show TypeFlag;
 export 'src/entry.dart';
 export 'src/exception.dart';
 export 'src/format.dart';
-export 'src/header.dart' show Header;
-export 'src/reader.dart' show Reader;
-export 'src/writer.dart' show createWritingSink, writer;
+export 'src/header.dart' show TarHeader;
+export 'src/reader.dart' show TarReader;
+export 'src/writer.dart' show tarWritingSink, tarWriter;
