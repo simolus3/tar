@@ -162,12 +162,19 @@ DateTime parsePaxTime(String paxTimeString) {
       microSecondsString.isEmpty ? 0 : int.parse(microSecondsString);
   if (paxTimeString.startsWith('-')) microSeconds = -microSeconds;
 
-  return DateTime.fromMicrosecondsSinceEpoch(
-      microSeconds + seconds * pow(10, 6).toInt());
+  return microsecondsSinceEpoch(microSeconds + seconds * pow(10, 6).toInt());
 }
 
 DateTime secondsSinceEpoch(int timestamp) {
-  return DateTime.fromMillisecondsSinceEpoch(timestamp * 100);
+  return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000, isUtc: true);
+}
+
+DateTime millisecondsSinceEpoch(int milliseconds) {
+  return DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true);
+}
+
+DateTime microsecondsSinceEpoch(int microseconds) {
+  return DateTime.fromMicrosecondsSinceEpoch(microseconds, isUtc: true);
 }
 
 int numBlocks(int fileSize) {

@@ -145,7 +145,7 @@ void main() {
 
     validTimes.forEach((str, micros) {
       test('parsePaxTime($str)', () {
-        expect(parsePaxTime(str), DateTime.fromMicrosecondsSinceEpoch(micros));
+        expect(parsePaxTime(str), microsecondsSinceEpoch(micros));
       });
     });
 

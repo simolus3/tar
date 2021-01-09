@@ -664,8 +664,6 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
     Never error() => throw TarException.header('Invalid PAX record');
 
-    // the minus one is here because some implementations add another line break
-    // to the end of the record
     while (offset < data.length) {
       // At the start of an entry, expect its length which is terminated by a
       // space char.
@@ -693,7 +691,9 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
       // Length also includes the length description and a space we just read
       final endOfEntry = offset + length - 1 - charsInLength;
-      if (endOfEntry < offset || endOfEntry > data.length) {
+      // checking against endOfEntry - 1 because the trailing whitespace is
+      // optional for the last entry
+      if (endOfEntry < offset || endOfEntry - 1 > data.length) {
         error();
       }
 
@@ -734,7 +734,8 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
       // Skip over value
       offset = endOfValue;
       // and the trailing newline
-      if (data[offset] != $lf) {
+      final hasNewline = offset < data.length;
+      if (hasNewline && data[offset] != $lf) {
         throw TarException('Invalid PAX Record (missing trailing newline)');
       }
       offset++;
