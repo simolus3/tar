@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:chunked_stream/chunked_stream.dart';
+import 'package:tar/src/sparse.dart';
 import 'package:tar/tar.dart';
 import 'package:test/test.dart';
 
@@ -176,4 +177,164 @@ void main() {
       });
     }
   }
+
+  group('sparse entries', () {
+    final tests = [
+      _SparseTestcase(
+        input: [],
+        size: 0,
+        isValid: true,
+        inverted: [SparseEntry(0, 0)],
+      ),
+      _SparseTestcase(
+        input: [],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(0, 5000)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(0, 5000)],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(5000, 0)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(1000, 4000)],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(0, 1000), SparseEntry(5000, 0)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(0, 3000)],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(3000, 2000)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(3000, 2000)],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(0, 3000), SparseEntry(5000, 0)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(2000, 2000)],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(0, 2000), SparseEntry(4000, 1000)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(0, 2000), SparseEntry(8000, 2000)],
+        size: 10000,
+        isValid: true,
+        inverted: [SparseEntry(2000, 6000), SparseEntry(10000, 0)],
+      ),
+      _SparseTestcase(
+        input: [
+          SparseEntry(0, 2000),
+          SparseEntry(2000, 2000),
+          SparseEntry(4000, 0),
+          SparseEntry(4000, 3000),
+          SparseEntry(7000, 1000),
+          SparseEntry(8000, 0),
+          SparseEntry(8000, 2000)
+        ],
+        size: 10000,
+        isValid: true,
+        inverted: [SparseEntry(10000, 0)],
+      ),
+      _SparseTestcase(
+        input: [
+          SparseEntry(0, 0),
+          SparseEntry(1000, 0),
+          SparseEntry(2000, 0),
+          SparseEntry(3000, 0),
+          SparseEntry(4000, 0),
+          SparseEntry(5000, 0),
+        ],
+        size: 5000,
+        isValid: true,
+        inverted: [SparseEntry(0, 5000)],
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(1, 0)],
+        size: 0,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(-1, 0)],
+        size: 100,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(0, -1)],
+        size: 100,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(0, 1)],
+        size: -100,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(9223372036854775807, 3), SparseEntry(6, -5)],
+        size: 35,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(1, 3), SparseEntry(6, -5)],
+        size: 35,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(9223372036854775807, 9223372036854775807)],
+        size: 9223372036854775807,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(3, 3)],
+        size: 5,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(2, 0), SparseEntry(1, 0), SparseEntry(0, 0)],
+        size: 3,
+        isValid: false,
+      ),
+      _SparseTestcase(
+        input: [SparseEntry(1, 3), SparseEntry(2, 2)],
+        size: 10,
+        isValid: false,
+      ),
+    ];
+
+    for (var i = 0; i < tests.length; i++) {
+      final testcase = tests[i];
+
+      test('validateSparseEntries #$i', () {
+        expect(validateSparseEntries(testcase.input, testcase.size),
+            testcase.isValid);
+      });
+
+      if (testcase.isValid) {
+        test('invertSparseEntries #$i', () {
+          expect(invertSparseEntries(testcase.input, testcase.size),
+              testcase.inverted);
+        });
+      }
+    }
+  });
+}
+
+class _SparseTestcase {
+  final List<SparseEntry> input;
+  final int size;
+  final bool isValid;
+  final List<SparseEntry>? inverted;
+
+  _SparseTestcase({
+    required this.input,
+    required this.size,
+    required this.isValid,
+    this.inverted,
+  });
 }
