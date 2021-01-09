@@ -315,10 +315,10 @@ class TarReader implements StreamIterator<TarEntry> {
 
       final sparseHoles = invertSparseEntries(sparseData, header.size);
       final sparseDataLength =
-          sparseHoles.fold<int>(0, (value, element) => value + element.length);
+          sparseData.fold<int>(0, (value, element) => value + element.length);
 
       final contents =
-          _chunkedStream.substream(numBlocks(sparseDataLength) * blockSize);
+          _chunkedStream.substream(nextBlockSize(sparseDataLength));
       return sparseStream(contents, sparseHoles, header.size);
     } else {
       var size = header.size;
