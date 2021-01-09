@@ -9,6 +9,7 @@ import 'package:meta/meta.dart';
 import 'package:typed_data/typed_buffers.dart';
 
 import 'constants.dart';
+import 'entry.dart';
 import 'exception.dart';
 import 'format.dart';
 import 'header.dart';
@@ -20,7 +21,7 @@ import 'utils.dart';
 /// individual file contents in order to minimize the amount of memory needed
 /// to read each archive where possible.
 @sealed
-class TarReader implements StreamIterator<TarHeader> {
+class TarReader implements StreamIterator<TarEntry> {
   /// A chunked stream iterator to enable us to get our data.
   final ChunkedStreamIterator<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
@@ -29,9 +30,13 @@ class TarReader implements StreamIterator<TarHeader> {
   /// Skip the next [_skipNext] elements when reading in the stream.
   int _skipNext = 0;
 
-  TarHeader? _header;
-  Stream<List<int>>? _contents;
-  bool _listenedToContents = false;
+  TarEntry? _current;
+
+  /// Whether [_current] has ever been listened to.
+  bool _listenedToContentsOnce = false;
+
+  /// Whether there is an active stream that has not been fully consumed.
+  bool _currentStreamNullOrComplete = true;
 
   /// Whether we're in the process of reading tar headers.
   bool _isReadingHeaders = false;
@@ -50,14 +55,7 @@ class TarReader implements StreamIterator<TarHeader> {
         _maxSpecialFileSize = maxSpecialFileSize;
 
   /// The current [TarHeader] of the active tar entry.
-  TarHeader get header {
-    final header = _header;
-    if (header == null) {
-      throw StateError(
-          'Invalid call to Reader.header, did you call moveNext()?');
-    }
-    return header;
-  }
+  TarHeader get header => current.header;
 
   /// The content stream of the active tar entry.
   ///
@@ -67,17 +65,19 @@ class TarReader implements StreamIterator<TarHeader> {
   /// the next call to [next]. It's acceptable to not listen to [contents] at
   /// all before calling [next] again. In that case, this library will take care
   /// of draining the stream to get to the next entry.
-  Stream<List<int>> get contents {
-    final contents = _contents;
-    if (contents == null) {
-      throw StateError(
-          'Invalid call to Reader.contents, did you call moveNext()?');
-    }
-    return contents;
-  }
+  Stream<List<int>> get contents => current;
 
   @override
-  TarHeader get current => header;
+  TarEntry get current {
+    final current = _current;
+
+    if (current == null) {
+      throw StateError('Invalid call to TarReader.current. \n'
+          'Did you call and await next() and checked that it returned true?');
+    }
+
+    return current;
+  }
 
   /// Reads the tar stream up until the beginning of the next logical file.
   ///
@@ -123,9 +123,9 @@ class TarReader implements StreamIterator<TarHeader> {
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
         if (eofAcceptable) {
-          _header = null;
-          _contents = null;
-          _listenedToContents = false;
+          _current = null;
+          _currentStreamNullOrComplete = true;
+          _listenedToContentsOnce = false;
           _isReadingHeaders = false;
           return false;
         } else {
@@ -190,9 +190,10 @@ class TarReader implements StreamIterator<TarHeader> {
         }
         nextHeader.format = format;
 
-        _header = nextHeader;
-        _contents = _publishStream(content, nextHeader.size);
-        _listenedToContents = false;
+        _current =
+            TarEntry(nextHeader, _publishStream(content, nextHeader.size));
+        _listenedToContentsOnce = false;
+        _currentStreamNullOrComplete = false;
         _isReadingHeaders = false;
         return true;
       }
@@ -229,9 +230,8 @@ class TarReader implements StreamIterator<TarHeader> {
     }
     _isReadingHeaders = true;
 
-    final contents = _contents;
-    if (contents != null) {
-      if (_listenedToContents) {
+    if (!_currentStreamNullOrComplete) {
+      if (_listenedToContentsOnce) {
         throw StateError(
             'Illegal call to Reader.moveNext() while a previous stream was '
             'active.\n'
@@ -239,7 +239,7 @@ class TarReader implements StreamIterator<TarHeader> {
             'complete or cancelled before calling Reader.moveNext() again.');
       } else {
         await contents.drain<void>();
-        assert(!_listenedToContents);
+        assert(_currentStreamNullOrComplete);
       }
     }
   }
@@ -344,14 +344,15 @@ class TarReader implements StreamIterator<TarHeader> {
   /// stream starts and resets it when it's done.
   Stream<List<int>> _publishStream(Stream<List<int>> stream, int length) {
     return Stream.eventTransformed(stream, (sink) {
-      _listenedToContents = true;
+      _listenedToContentsOnce = true;
+
       return _OutgoingStreamGuard(
         length,
         sink,
-        // Reset state when the stream is done.
+        // Reset state when the stream is done. This will only be called when
+        // the sream is done, not when a listener cancels.
         () {
-          _contents = null;
-          _listenedToContents = false;
+          _currentStreamNullOrComplete = true;
         },
       );
     });
