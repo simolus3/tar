@@ -9,12 +9,12 @@ Future<void> main() async {
 
   try {
     while (await reader.moveNext()) {
-      final header = reader.header;
+      final header = reader.current.header;
       print('${header.name}: ');
 
       // Print the output if it's a regular file
       if (header.typeFlag == TypeFlag.reg) {
-        await reader.contents.transform(utf8.decoder).forEach(print);
+        await reader.current.contents.transform(utf8.decoder).forEach(print);
       }
     }
   } finally {

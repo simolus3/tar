@@ -54,19 +54,6 @@ class TarReader implements StreamIterator<TarEntry> {
       : _chunkedStream = ChunkedStreamIterator(tarStream),
         _maxSpecialFileSize = maxSpecialFileSize;
 
-  /// The current [TarHeader] of the active tar entry.
-  TarHeader get header => current.header;
-
-  /// The content stream of the active tar entry.
-  ///
-  /// This is a single-subscription stream backed by the original stream used to
-  /// create this [TarReader].
-  /// When listening on [contents], the stream needs to be fully drained before
-  /// the next call to [next]. It's acceptable to not listen to [contents] at
-  /// all before calling [next] again. In that case, this library will take care
-  /// of draining the stream to get to the next entry.
-  Stream<List<int>> get contents => current;
-
   @override
   TarEntry get current {
     final current = _current;
@@ -206,13 +193,15 @@ class TarReader implements StreamIterator<TarEntry> {
   }
 
   /// Utility function for quickly iterating through all entries in [tarStream].
-  static Future<void> forEach(
-      Stream<List<int>> tarStream,
-      FutureOr<void> Function(TarHeader header, Stream<List<int>> contents)
-          action) async {
+  static Future<void> forEach(Stream<List<int>> tarStream,
+      FutureOr<void> Function(TarEntry header) action) async {
     final reader = TarReader(tarStream);
-    while (await reader.moveNext()) {
-      await action(reader.header, reader.contents);
+    try {
+      while (await reader.moveNext()) {
+        await action(reader.current);
+      }
+    } finally {
+      await reader.cancel();
     }
   }
 
@@ -238,7 +227,7 @@ class TarReader implements StreamIterator<TarEntry> {
             'When listening to Reader.contents, make sure the stream is '
             'complete or cancelled before calling Reader.moveNext() again.');
       } else {
-        await contents.drain<void>();
+        await current.contents.drain<void>();
         assert(_currentStreamNullOrComplete);
       }
     }

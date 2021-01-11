@@ -184,7 +184,7 @@ class HeaderImpl extends TarHeader {
 
   factory HeaderImpl.parseBlock(Uint8List headerBlock,
       {Map<String, String> paxHeaders = const {}}) {
-    RangeError.checkValidRange(headerBlock.length, blockSize, blockSize);
+    assert(paxHeaders.length == 512);
 
     final format = _getFormat(headerBlock);
     final size = paxHeaders.size ?? headerBlock.readOctal(124, 12);

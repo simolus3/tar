@@ -70,7 +70,7 @@ Future<void> validate(Stream<List<int>> tar, Map<String, String> files) async {
   for (var i = 0; i < files.length; i++) {
     expect(await reader.moveNext(), isTrue);
 
-    final fileName = reader.header.name;
+    final fileName = reader.current.name;
     final matchingFile = files[fileName];
 
     if (matchingFile == null) {
@@ -78,7 +78,7 @@ Future<void> validate(Stream<List<int>> tar, Map<String, String> files) async {
     }
 
     final actualContents = ChunkedStreamIterator(File(matchingFile).openRead());
-    final tarContents = ChunkedStreamIterator(reader.contents);
+    final tarContents = ChunkedStreamIterator(reader.current.contents);
 
     while (true) {
       final actualChunk = await actualContents.read(1024);

@@ -108,7 +108,7 @@ class _WritingSink extends StreamSink<TarEntry> {
     Uint8List? bufferedData;
     if (size < 0) {
       final builder = BytesBuilder();
-      await event.forEach(builder.add);
+      await event.contents.forEach(builder.add);
       bufferedData = builder.takeBytes();
       size = bufferedData.length;
     }
@@ -178,7 +178,7 @@ class _WritingSink extends StreamSink<TarEntry> {
     if (bufferedData != null) {
       _output.add(bufferedData);
     } else {
-      await event.forEach(_output.add);
+      await event.contents.forEach(_output.add);
     }
 
     final padding = -size % blockSize;

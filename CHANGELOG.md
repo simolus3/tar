@@ -1,3 +1,7 @@
+## 0.3.0-dev
+
+- Remove `TarReader.contents` and `TarReader.header`. Use `current.contents` and `current.header`, respectively.
+
 ## 0.2.0-nullsafety
 
 Most of the tar package has been rewritten, it's now based on the

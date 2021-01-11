@@ -26,14 +26,12 @@ void main() {
 
     expect(await reader.moveNext(), isTrue);
     expect(await reader.moveNext(), isTrue);
-    expect(reader.header.name, 'reference/res/subdirectory_with_a_long_name/');
+    expect(reader.current.name, 'reference/res/subdirectory_with_a_long_name/');
   });
 
   test('getters throw before moveNext() is called', () {
     final reader = TarReader(const Stream<Never>.empty());
 
-    expect(() => reader.contents, throwsStateError);
-    expect(() => reader.header, throwsStateError);
     expect(() => reader.current, throwsStateError);
   });
 
@@ -51,7 +49,7 @@ void main() {
     final reader = TarReader(input);
 
     expect(await reader.moveNext(), isTrue);
-    reader.contents.listen((event) {}).pause();
+    reader.current.contents.listen((event) {}).pause();
 
     expect(() => reader.moveNext(), throwsStateError);
     await reader.cancel();
@@ -720,7 +718,7 @@ void main() {
 
           for (var i = 0; i < expectedHeaders.length; i++) {
             expect(await tarReader.moveNext(), isTrue);
-            expect(tarReader.header, matchesHeader(expectedHeaders[i]));
+            expect(tarReader.current.header, matchesHeader(expectedHeaders[i]));
           }
           expect(await tarReader.moveNext(), isFalse);
         }
@@ -730,7 +728,7 @@ void main() {
     test('reader procudes an empty stream if the entry has no size', () async {
       final reader = TarReader(open('trailing-slash.tar'));
       while (await reader.moveNext()) {
-        expect(await reader.contents.toList(), isEmpty);
+        expect(await reader.current.contents.toList(), isEmpty);
       }
     });
   });
@@ -827,8 +825,8 @@ void main() {
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
   final entries = <String, Uint8List>{};
 
-  await TarReader.forEach(File(file).openRead(), (header, contents) async {
-    entries[header.name] = await contents.readFully();
+  await TarReader.forEach(File(file).openRead(), (entry) async {
+    entries[entry.name] = await entry.contents.readFully();
   });
 
   final testEntry = entries['reference/res/test.txt']!;
@@ -846,7 +844,7 @@ Future<void> _testLargeFile(String file) async {
   final reader = TarReader(File(file).openRead());
   await reader.moveNext();
 
-  expect(reader.header.size, 9663676416);
+  expect(reader.current.size, 9663676416);
 }
 
 extension on Stream<List<int>> {

@@ -19,7 +19,7 @@ void main() {
     test('can read $package', () {
       final file = File('reference/pub/$package.tar.gz');
       final tarStream = file.openRead().transform(gzip.decoder);
-      return TarReader.forEach(tarStream, (header, contents) {
+      return TarReader.forEach(tarStream, (entry) {
         // do nothing, we just want to make sure that the package can be read.
       });
     });
