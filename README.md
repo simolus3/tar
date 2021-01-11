@@ -18,12 +18,18 @@ import 'package:tar/tar.dart';
 Future<void> main() async {
   final reader = TarReader(File('file.tar').openRead());
 
-  while (await reader.moveNext()) {
-    // Use reader.header to see the header of the current tar entry
-    print(reader.header.name);
-    // And reader.contents to read the content of the current entry as a stream
-    print(await reader.contents.transform(utf8.decoder).first);
+  try {
+    while (await reader.moveNext()) {
+      // Use reader.header to see the header of the current tar entry
+      print(reader.header.name);
+      // And reader.contents to read the content of the current entry as a stream
+      print(await reader.contents.transform(utf8.decoder).first);
+    }
+  } finally {
+    // Close the underlying stream subscription when we're done
+    await reader.cancel();
   }
+
 }
 ```
 

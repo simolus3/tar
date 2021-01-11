@@ -1,5 +1,7 @@
 import 'package:charcode/charcode.dart';
 
+import 'exception.dart';
+
 // Magic values to help us identify the TAR header type.
 const magicGnu = [$u, $s, $t, $a, $r, $space]; // 'ustar '
 const versionGnu = [$space, 0]; // ' \x00'
@@ -112,7 +114,7 @@ TypeFlag typeflagFromByte(int byte) {
       if (64 < byte && byte < 91) {
         return TypeFlag.vendor;
       }
-      throw ArgumentError('Invalid typeflag value $byte');
+      throw TarException.header('Invalid typeflag value $byte');
   }
 }
 
