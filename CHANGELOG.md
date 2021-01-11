@@ -1,8 +1,14 @@
-## 0.2.0-dev
+## 0.2.0-nullsafety
 
-- Remove `MemoryEntry`. Use `Entry.data` to create a tar entry from bytes.
-- Make `WritingSink` private. Use `createWritingSink` to create a general `StreamSink<tar.Entry>`.
-- Make `Reader` private. Use `createReader` to create a custom tar reader.
+Most of the tar package has been rewritten, it's now based on the
+implementation written by [Garett Tok Ern Liang](https://github.com/walnutdust)
+in the GSoC 2020.
+
+- Added `tar` prefix to exported symbols.
+- Remove `MemoryEntry`. Use `TarEntry.data` to create a tar entry from bytes.
+- Make `WritingSink` private. Use `tarWritingSink` to create a general `StreamSink<tar.Entry>`.
+- `TarReader` is now a [`StreamIterator`](https://api.dart.dev/stable/2.10.4/dart-async/StreamIterator-class.html),
+  the transformer had some design flaws
 
 ## 0.1.0-nullsafety.1
 
