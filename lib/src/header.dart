@@ -194,8 +194,10 @@ class HeaderImpl extends TarHeader {
       format: format,
       name: headerBlock.readString(0, 100),
       mode: headerBlock.readOctal(100, 8),
-      userId: headerBlock.readOctal(108, 8),
-      groupId: headerBlock.readOctal(116, 8),
+      // These should be octal, but some weird tar implementations ignore that?!
+      // Encountered with package:RAL, version 1.28.0 on pub
+      userId: headerBlock.readNumeric(108, 8),
+      groupId: headerBlock.readNumeric(116, 8),
       size: size,
       modified: secondsSinceEpoch(headerBlock.readOctal(136, 12)),
       typeFlag: typeflagFromByte(headerBlock[156]),
@@ -243,10 +245,6 @@ class HeaderImpl extends TarHeader {
       if (prefix.isNotEmpty) {
         header.name = '$prefix/${header.name}';
       }
-    }
-
-    if (!validateTypeFlag(header.typeFlag, header.format)) {
-      throw TarException.header('Invalid type flag for indicated format');
     }
 
     return header.._applyPaxHeaders(paxHeaders);

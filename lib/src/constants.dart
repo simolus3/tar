@@ -1,7 +1,5 @@
 import 'package:charcode/charcode.dart';
 
-import 'format.dart';
-
 // Magic values to help us identify the TAR header type.
 const magicGnu = [$u, $s, $t, $a, $r, $space]; // 'ustar '
 const versionGnu = [$space, 0]; // ' \x00'
@@ -149,34 +147,6 @@ int typeflagToByte(TypeFlag flag) {
       return $K;
     case TypeFlag.vendor:
       throw ArgumentError("Can't write vendor-specific type-flags");
-  }
-}
-
-/// Checks if [typeFlag] is allowed in [format].
-bool validateTypeFlag(TypeFlag typeFlag, TarFormat format) {
-  switch (typeFlag) {
-    case TypeFlag.symlink:
-    case TypeFlag.char:
-    case TypeFlag.block:
-    case TypeFlag.dir:
-    case TypeFlag.fifo:
-    case TypeFlag.reserved:
-    case TypeFlag.vendor:
-      return format.has(TarFormat.ustar) ||
-          format.has(TarFormat.pax) ||
-          format.has(TarFormat.gnu) ||
-          format.has(TarFormat.star);
-    case TypeFlag.link:
-    case TypeFlag.reg:
-    case TypeFlag.regA:
-      return true;
-    case TypeFlag.xHeader:
-    case TypeFlag.xGlobalHeader:
-      return format.has(TarFormat.pax);
-    case TypeFlag.gnuSparse:
-    case TypeFlag.gnuLongName:
-    case TypeFlag.gnuLongLink:
-      return format.has(TarFormat.gnu);
   }
 }
 

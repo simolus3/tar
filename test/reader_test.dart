@@ -554,10 +554,6 @@ void main() {
         'error': true,
       },
       {
-        'file': 'neg-size.tar',
-        'error': true,
-      },
-      {
         // Malformed sparse file
         'file': 'malformed-sparse-file.tar',
         'error': true,
