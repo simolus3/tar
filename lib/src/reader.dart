@@ -450,7 +450,7 @@ class TarReader implements StreamIterator<TarEntry> {
     String nextToken() {
       newLineCount--;
       final nextNewLineIndex = block.indexOf($lf);
-      final result = block.sublist(0, nextNewLineIndex).asUint8List();
+      final result = block.buffer.asUint8List(0, nextNewLineIndex);
       block.removeRange(0, nextNewLineIndex + 1);
       return result.readString(0, nextNewLineIndex);
     }
@@ -557,7 +557,7 @@ class TarReader implements StreamIterator<TarEntry> {
     header.size = rawHeader.readNumeric(483, 12);
     final sparseMaps = <Uint8List>[];
 
-    var sparse = rawHeader.sublist(386, 483);
+    var sparse = rawHeader.sublistView(386, 483);
     sparseMaps.add(sparse);
 
     while (true) {

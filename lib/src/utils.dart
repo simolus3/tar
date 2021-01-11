@@ -16,19 +16,23 @@ extension ByteBufferUtils on Uint8List {
     return readStringOrNullIfEmpty(offset, maxLength) ?? '';
   }
 
+  Uint8List sublistView(int start, [int? end]) {
+    return Uint8List.sublistView(this, start, end);
+  }
+
   String? readStringOrNullIfEmpty(int offset, int maxLength) {
-    var sublistView = sublist(offset, offset + maxLength);
-    var contentLength = sublistView.indexOf(0);
+    var data = sublistView(offset, offset + maxLength);
+    var contentLength = data.indexOf(0);
     // If there's no \0, assume that the string fills the whole segment
     if (contentLength.isNegative) contentLength = maxLength;
 
     if (contentLength == 0) return null;
 
-    sublistView = sublistView.sublist(0, contentLength);
+    data = data.sublistView(0, contentLength);
     try {
-      return utf8.decode(sublistView);
+      return utf8.decode(data);
     } on FormatException {
-      return String.fromCharCodes(sublistView).trim();
+      return String.fromCharCodes(data).trim();
     }
   }
 
