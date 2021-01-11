@@ -746,10 +746,11 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
   /// This is adopted from the Golang tar reader (`validPAXRecord`), which says
   /// that "Keys and values should be UTF-8, but the number of bad writers out
   /// there forces us to be a more liberal."
-  /// These limitations aren't documented in the PAX standard.
   static bool _isValidPaxRecord(String key, String value) {
+    // These limitations are documented in the PAX standard.
     if (key.isEmpty || key.contains('=')) return false;
 
+    // These aren't, but Golangs's tar has them and got away with it.
     switch (key) {
       case paxPath:
       case paxLinkpath:
