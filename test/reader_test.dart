@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:chunked_stream/chunked_stream.dart';
 import 'package:tar/src/reader.dart';
 import 'package:tar/src/utils.dart';
 import 'package:test/test.dart';
@@ -35,7 +37,7 @@ void main() {
     expect(() => reader.current, throwsStateError);
   });
 
-  test("can't use next() concurrently", () {
+  test("can't use moveNext() concurrently", () {
     final reader = TarReader(Stream.fromFuture(
         Future.delayed(const Duration(seconds: 2), () => <int>[])));
 
@@ -44,7 +46,7 @@ void main() {
     return reader.cancel();
   });
 
-  test("can't use next() while a stream is active", () async {
+  test("can't use moveNext() while a stream is active", () async {
     final input = File('reference/posix.tar').openRead();
     final reader = TarReader(input);
 
@@ -53,6 +55,63 @@ void main() {
 
     expect(() => reader.moveNext(), throwsStateError);
     await reader.cancel();
+  });
+
+  test("can't use moveNext() after canceling the reader", () async {
+    final input = File('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+    await reader.cancel();
+
+    expect(() => reader.moveNext(), throwsStateError);
+  });
+
+  group('the reader closes itself', () {
+    test("at the end of a file", () async {
+      // two zero blocks terminate a tar file
+      final zeroBlock = Uint8List(512);
+      final controller = StreamController<List<int>>();
+      controller.onListen = () {
+        controller..add(zeroBlock)..add(zeroBlock);
+      };
+
+      final reader = TarReader(controller.stream);
+      await expectLater(reader.moveNext(), completion(isFalse));
+
+      expect(controller.hasListener, isFalse);
+    });
+
+    test('if the stream emits an error in headers', () async {
+      final controller = StreamController<List<int>>();
+      controller.onListen = () {
+        controller.addError('foo');
+      };
+
+      final reader = TarReader(controller.stream);
+      await expectLater(reader.moveNext(), throwsA('foo'));
+
+      expect(controller.hasListener, isFalse);
+    });
+
+    test('if the stream emits an error in content', () async {
+      // Craft a stream that starts with a valid tar file, but then emits an
+      // error in the middle of an entry. First 512 bytes are headers.
+      final iterator =
+          ChunkedStreamIterator(File('reference/v7.tar').openRead());
+      final controller = StreamController<List<int>>();
+      controller.onListen = () async {
+        // headers + 3 bytes of content
+        await controller.addStream(iterator.substream(515));
+        controller.addError('foo');
+      };
+
+      final reader = TarReader(controller.stream);
+      await expectLater(reader.moveNext(), completion(isTrue));
+      await expectLater(
+          reader.current.contents, emitsThrough(emitsError('foo')));
+
+      expect(controller.hasListener, isFalse);
+      await iterator.cancel();
+    });
   });
 
   group('tests from dart-neats PR', () {

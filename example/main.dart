@@ -7,18 +7,14 @@ Future<void> main() async {
   // Start reading a tar file
   final reader = TarReader(File('reference/gnu.tar').openRead());
 
-  try {
-    while (await reader.moveNext()) {
-      final header = reader.current.header;
-      print('${header.name}: ');
+  while (await reader.moveNext()) {
+    final header = reader.current.header;
+    print('${header.name}: ');
 
-      // Print the output if it's a regular file
-      if (header.typeFlag == TypeFlag.reg) {
-        await reader.current.contents.transform(utf8.decoder).forEach(print);
-      }
+    // Print the output if it's a regular file
+    if (header.typeFlag == TypeFlag.reg) {
+      await reader.current.contents.transform(utf8.decoder).forEach(print);
     }
-  } finally {
-    await reader.cancel();
   }
 
   // We can write tar files to any stream sink like this:

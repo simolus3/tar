@@ -18,18 +18,15 @@ import 'package:tar/tar.dart';
 Future<void> main() async {
   final reader = TarReader(File('file.tar').openRead());
 
-  try {
-    while (await reader.moveNext()) {
-      // Use reader.header to see the header of the current tar entry
-      print(reader.header.name);
-      // And reader.contents to read the content of the current entry as a stream
-      print(await reader.contents.transform(utf8.decoder).first);
-    }
-  } finally {
-    // Close the underlying stream subscription when we're done
-    await reader.cancel();
+  while (await reader.moveNext()) {
+    // Use reader.header to see the header of the current tar entry
+    print(reader.header.name);
+    // And reader.contents to read the content of the current entry as a stream
+    print(await reader.contents.transform(utf8.decoder).first);
   }
-
+  // Note that the reader will automatically close if moveNext() returns false or
+  // throws. If you want to close a tar stream before that happens, use 
+  // reader.cancel();
 }
 ```
 
@@ -41,9 +38,9 @@ To easily go through all entries in a tar file, use `Reader.forEach`:
 Future<void> main() async {
   final inputStream = File('file.tar').openRead();
 
-  await TarReader.forEach(inputStream, (header, contents) {
+  await TarReader.forEach(inputStream, (entry) {
     print(header.name);
-    print(await contents.transform(utf8.decoder).first);
+    print(await entry.contents.transform(utf8.decoder).first);
   });
 }
 ```

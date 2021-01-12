@@ -41,6 +41,15 @@ class TarReader implements StreamIterator<TarEntry> {
   /// Whether we're in the process of reading tar headers.
   bool _isReadingHeaders = false;
 
+  /// Whether this tar reader is terminally done.
+  ///
+  /// That is the case if:
+  ///  - [cancel] was called
+  ///  - [moveNext] completed to `false` once.
+  ///  - [moveNext] completed to an error
+  ///  - an error was emitted through a tar entry's content stream
+  bool _isDone = false;
+
   /// Creates a tar reader reading from the raw [tarStream].
   ///
   /// The [maxSpecialFileSize] parameter can be used to limit the maximum length
@@ -68,16 +77,30 @@ class TarReader implements StreamIterator<TarEntry> {
 
   /// Reads the tar stream up until the beginning of the next logical file.
   ///
-  /// If such file exists, the returned future will complete with `true`. The
-  /// entries header can then be accessed using [header] and its content can be
-  /// read using [contents].
+  /// If such file exists, the returned future will complete with `true`. After
+  /// the future completes, the next tar entry will be evailable in [current].
+  ///
   /// If no such file exists, the future will complete with `false`.
   /// The future might complete with an [TarException] if the tar stream is
   /// malformed or ends unexpectedly.
+  /// If the future completes with `false` or an exception, the reader will
+  /// [cancel] itself and release associated resources. Thus, it is invalid to
+  /// call [moveNext] again in that case.
   @override
   Future<bool> moveNext() async {
     await _prepareToReadHeaders();
+    try {
+      return await _moveNextInternal();
+    } on Object {
+      await cancel();
+      rethrow;
+    }
+  }
 
+  /// Consumes the stream up to the contents of the next logical tar entry.
+  /// Will cancel the underlying subscription when returning false, but not when
+  /// it throws.
+  Future<bool> _moveNextInternal() async {
     // We're reading a new logical file, so clear the local pax headers
     _paxHeaders.clearLocals();
 
@@ -110,10 +133,7 @@ class TarReader implements StreamIterator<TarEntry> {
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
         if (eofAcceptable) {
-          _current = null;
-          _currentStreamNullOrComplete = true;
-          _listenedToContentsOnce = false;
-          _isReadingHeaders = false;
+          await cancel();
           return false;
         } else {
           _unexpectedEof();
@@ -188,7 +208,15 @@ class TarReader implements StreamIterator<TarEntry> {
   }
 
   @override
-  Future<void> cancel() {
+  Future<void> cancel() async {
+    if (_isDone) return;
+
+    _isDone = true;
+    _current = null;
+    _currentStreamNullOrComplete = true;
+    _listenedToContentsOnce = false;
+    _isReadingHeaders = false;
+
     return _chunkedStream.cancel();
   }
 
@@ -213,8 +241,15 @@ class TarReader implements StreamIterator<TarEntry> {
   ///    * if [contents] has never been listened to, we drain the stream
   ///    * otherwise, throws a [StateError]
   Future<void> _prepareToReadHeaders() async {
+    if (_isDone) {
+      throw StateError('Tried to call TarReader.moveNext() on a canceled '
+          'reader. \n'
+          'Note that a reader is canceled when moveNext() throws or returns '
+          'false.');
+    }
+
     if (_isReadingHeaders) {
-      throw StateError('Concurrent call to Reader.moveNext() detected. \n'
+      throw StateError('Concurrent call to TarReader.moveNext() detected. \n'
           'Please await all calls to Reader.moveNext().');
     }
     _isReadingHeaders = true;
@@ -222,10 +257,10 @@ class TarReader implements StreamIterator<TarEntry> {
     if (!_currentStreamNullOrComplete) {
       if (_listenedToContentsOnce) {
         throw StateError(
-            'Illegal call to Reader.moveNext() while a previous stream was '
+            'Illegal call to TarReader.moveNext() while a previous stream was '
             'active.\n'
-            'When listening to Reader.contents, make sure the stream is '
-            'complete or cancelled before calling Reader.moveNext() again.');
+            'When listening to tar contents, make sure the stream is '
+            'complete or cancelled before calling TarReader.moveNext() again.');
       } else {
         await current.contents.drain<void>();
         assert(_currentStreamNullOrComplete);
@@ -335,13 +370,17 @@ class TarReader implements StreamIterator<TarEntry> {
     return Stream.eventTransformed(stream, (sink) {
       _listenedToContentsOnce = true;
 
-      return _OutgoingStreamGuard(
+      late _OutgoingStreamGuard guard;
+      return guard = _OutgoingStreamGuard(
         length,
         sink,
         // Reset state when the stream is done. This will only be called when
         // the sream is done, not when a listener cancels.
         () {
           _currentStreamNullOrComplete = true;
+          if (guard.hadError) {
+            cancel();
+          }
         },
       );
     });
@@ -439,7 +478,7 @@ class TarReader implements StreamIterator<TarEntry> {
     String nextToken() {
       newLineCount--;
       final nextNewLineIndex = block.indexOf($lf);
-      final result = block.buffer.asUint8List(0, nextNewLineIndex);
+      final result = block.sublist(0, nextNewLineIndex).asUint8List();
       block.removeRange(0, nextNewLineIndex + 1);
       return result.readString(0, nextNewLineIndex);
     }
