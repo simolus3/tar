@@ -39,4 +39,6 @@ jobs:
         run: dart analyze --fatal-infos
 
       - name: Run tests
+        env:
+          PUB_CACHE: ".dart_tool/pub_cache"
         run: dart test
