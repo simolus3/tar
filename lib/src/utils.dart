@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:charcode/charcode.dart';
-import 'package:chunked_stream/chunked_stream.dart';
 
 import 'constants.dart';
 import 'exception.dart';
@@ -202,11 +201,5 @@ extension ToTyped on List<int> {
     }
 
     return true;
-  }
-}
-
-extension ChunkedStreamUtils on ChunkedStreamIterator<int> {
-  Future<Uint8List> readAsBlock(int size) async {
-    return (await read(size)).asUint8List();
   }
 }

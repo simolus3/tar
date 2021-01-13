@@ -284,7 +284,7 @@ class TarReader implements StreamIterator<TarEntry> {
   /// Reads a block with the requested [size], or throws an unexpected EoF
   /// exception.
   Future<Uint8List> _readFullBlock(int size, {bool allowEmpty = false}) async {
-    final block = await _chunkedStream.readAsBlock(size);
+    final block = await _chunkedStream.readBytes(size);
     if (block.length != size && !(allowEmpty && block.isEmpty)) {
       _unexpectedEof();
     }
@@ -305,7 +305,7 @@ class TarReader implements StreamIterator<TarEntry> {
     if (rawHeader.isEmpty) return null;
 
     if (rawHeader.isAllZeroes) {
-      rawHeader = await _chunkedStream.readAsBlock(blockSize);
+      rawHeader = await _chunkedStream.readBytes(blockSize);
 
       // Exactly 1 block of zeroes is read and EOF is hit.
       if (rawHeader.isEmpty) return null;
@@ -462,7 +462,7 @@ class TarReader implements StreamIterator<TarEntry> {
     /// Ensures that [block] h as at least [n] tokens.
     Future<void> feedTokens(int n) async {
       while (newLineCount < n) {
-        final newBlock = await _chunkedStream.readAsBlock(blockSize);
+        final newBlock = await _chunkedStream.readBytes(blockSize);
         if (newBlock.length < blockSize) {
           throw TarException.header(
               'GNU Sparse Map does not have enough lines!');
@@ -593,7 +593,7 @@ class TarReader implements StreamIterator<TarEntry> {
       if (sparse[24 * maxEntries] > 0) {
         // If there are more entries, read an extension header and parse its
         // entries.
-        sparse = await _chunkedStream.readAsBlock(blockSize);
+        sparse = await _chunkedStream.readBytes(blockSize);
         sparseMaps.add(sparse);
         continue;
       }

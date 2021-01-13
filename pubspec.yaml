@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   charcode: ^1.2.0-nullsafety
-  chunked_stream: ^1.3.0-nullsafety.0
+  chunked_stream: ^1.4.0-nullsafety.0
   meta: ^1.3.0-nullsafety.6
   synchronized: ^3.0.0-nullsafety.1
   typed_data: ^1.3.0-nullsafety.5
