@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:charcode/charcode.dart';
-import 'package:chunked_stream/chunked_stream.dart';
 
 import 'constants.dart';
 import 'exception.dart';
