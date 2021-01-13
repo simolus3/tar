@@ -204,9 +204,3 @@ extension ToTyped on List<int> {
     return true;
   }
 }
-
-extension ChunkedStreamUtils on ChunkedStreamIterator<int> {
-  Future<Uint8List> readAsBlock(int size) async {
-    return (await read(size)).asUint8List();
-  }
-}
