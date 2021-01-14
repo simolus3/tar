@@ -35,9 +35,13 @@ class TarReader implements StreamIterator<TarEntry> {
   /// The underlying content stream for the [_current] entry. Draining this
   /// stream will move the tar reader to the beginning of the next file.
   ///
-  /// We prefer to drain this stream instead of `_current.stream` because it can
-  /// be much more efficient when dealing with sparse data which wouldn't be
-  /// expanded in this stream.
+  /// This is not the same as `_current.stream` for sparse files, which are
+  /// reported as expanded through [TarEntry.stream].
+  /// For that reason, we prefer to drain this stream when skipping a tar entry.
+  /// When we know we're skipping data, there's no point expanding sparse holes.
+  ///
+  /// This stream is always set to null after being drained, and there can only
+  /// be one [_underlyingContentStream] at a time.
   Stream<List<int>>? _underlyingContentStream;
 
   /// Whether [_current] has ever been listened to.
