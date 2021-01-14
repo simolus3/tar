@@ -31,6 +31,21 @@ void main() {
     });
   });
 
+  group('generates stream of zeroes', () {
+    const lengths = [024 * 1024 * 128 + 12, 12, 0];
+
+    for (final length in lengths) {
+      test('with length $length', () {
+        final stream = zeroes(length);
+
+        expect(
+          stream.fold<int>(0, (previous, element) => previous + element.length),
+          completion(length),
+        );
+      });
+    }
+  });
+
   group('readNumeric', () {
     void testValid(String value, int expected) {
       test('readNumeric($value)', () {

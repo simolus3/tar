@@ -731,13 +731,13 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
         error();
       }
 
-      final key = utf8.decode(data.sublist(offset, nextEquals));
+      final key = utf8.decoder.convert(data, offset, nextEquals);
       // Skip over the equals sign
       offset = nextEquals + 1;
 
       // Subtract one for trailing newline
       final endOfValue = endOfEntry - 1;
-      final value = utf8.decode(data.sublist(offset, endOfValue));
+      final value = utf8.decoder.convert(data, offset, endOfValue);
 
       if (!_isValidPaxRecord(key, value)) {
         error();
@@ -820,9 +820,12 @@ class _OutgoingStreamGuard extends EventSink<List<int>> {
   @override
   void add(List<int> event) {
     emittedSize += event.length;
-    // We checks limiting the length of outgoing streams. If the stream is
+    // We have checks limiting the length of outgoing streams. If the stream is
     // larger than expected, that's a bug in pkg:tar.
-    assert(emittedSize <= expectedSize);
+    assert(
+        emittedSize <= expectedSize,
+        'Stream now emitted $emittedSize bytes, but only expected '
+        '$expectedSize');
 
     out.add(event);
   }

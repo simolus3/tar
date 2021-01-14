@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:charcode/charcode.dart';
 
 import 'exception.dart';
@@ -257,4 +259,4 @@ const nameSize = 100;
 const prefixSize = 155;
 
 /// A full TAR block of zeros.
-final zeroBlock = List.filled(blockSize, 0);
+final zeroBlock = Uint8List(blockSize);

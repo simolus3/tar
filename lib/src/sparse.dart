@@ -1,5 +1,8 @@
 import 'package:chunked_stream/chunked_stream.dart';
 
+import 'exception.dart';
+import 'utils.dart';
+
 /// Represents a [length]-sized fragment at [offset] in a file.
 ///
 /// [SparseEntry]s can represent either data or holes, and we can easily
@@ -63,7 +66,7 @@ Stream<List<int>> _sparseStream(
     while (sparseHoleIndex < sparseHoles.length &&
         sparseHoles[sparseHoleIndex].offset == position) {
       final sparseHole = sparseHoles[sparseHoleIndex];
-      yield List<int>.filled(sparseHole.length, 0);
+      yield* zeroes(sparseHole.length);
       position += sparseHole.length;
       sparseHoleIndex++;
     }
@@ -77,7 +80,17 @@ Stream<List<int>> _sparseStream(
       yieldTo = sparseHoles[sparseHoleIndex].offset;
     }
 
-    yield await iterator.read(yieldTo - position);
+    // Yield data as substream, but make sure that we have enough data.
+    var checkedPosition = position;
+    await for (final chunk in iterator.substream(yieldTo - position)) {
+      yield chunk;
+      checkedPosition += chunk.length;
+    }
+
+    if (checkedPosition != yieldTo) {
+      throw TarException('Invalid sparse data: Unexpected end of input stream');
+    }
+
     position = yieldTo;
   }
 }
