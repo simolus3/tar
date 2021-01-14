@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:charcode/ascii.dart';
-import 'package:synchronized/synchronized.dart';
 import 'package:tar/src/format.dart';
 
 import 'constants.dart';
@@ -72,7 +71,7 @@ class _WritingSink extends StreamSink<TarEntry> {
   final Completer<Object?> _done = Completer();
 
   int _pendingOperations = 0;
-  final Lock _lock = Lock();
+  Future<void> _ready = Future.value();
 
   _WritingSink(this._output);
 
@@ -87,19 +86,19 @@ class _WritingSink extends StreamSink<TarEntry> {
     return _doWork(() => _safeAdd(event));
   }
 
-  Future<void> _doWork(FutureOr<void> Function() work) async {
+  Future<void> _doWork(FutureOr<void> Function() work) {
     _pendingOperations++;
-    try {
-      await _lock.synchronized(work);
-    } catch (e, s) {
-      _output.addError(e, s);
-    } finally {
+    // Chain futures to make sure we only write one entry at a time.
+    return _ready = _ready
+        .then((_) => work())
+        .catchError(_output.addError)
+        .whenComplete(() {
       _pendingOperations--;
-    }
 
-    if (_closed && _pendingOperations == 0) {
-      _done.complete(_output.close());
-    }
+      if (_closed && _pendingOperations == 0) {
+        _done.complete(_output.close());
+      }
+    });
   }
 
   Future<void> _safeAdd(TarEntry event) async {
