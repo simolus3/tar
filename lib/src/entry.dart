@@ -17,8 +17,9 @@ class TarEntry {
 
   /// The content stream of the active tar entry.
   ///
-  /// This is a single-subscription stream backed by the original stream used to
-  /// create a tar reader.
+  /// For tar entries read through the reader provided by this library,
+  /// [contents] is a single-subscription streamed backed by the original stream
+  /// used to create the reader.
   /// When listening on [contents], the stream needs to be fully drained before
   /// the next call to [StreamIterator.next]. It's acceptable to not listen to
   /// [contents] at all before calling [StreamIterator.next] again. In that
@@ -39,10 +40,20 @@ class TarEntry {
   /// Time of the last modification of this file, as indicated in the [header].
   DateTime get modified => header.modified;
 
-  TarEntry(this.header, this.contents);
+  /// Creates a tar entry from a [header] and the [contents] stream.
+  ///
+  /// If the total length of [contents] is known, consider setting the
+  /// [header]'s [TarHeader.size] property to the appropriate value.
+  /// Otherwise, the tar writer needs to buffer contents to determine the right
+  /// size.
+  // factory so that this class can't be extended
+  factory TarEntry(TarHeader header, Stream<List<int>> contents) = TarEntry._;
+
+  TarEntry._(this.header, this.contents);
 
   /// Creates an in-memory tar entry from the [header] and the [data] to store.
   factory TarEntry.data(TarHeader header, List<int> data) {
+    (header as HeaderImpl).size = data.length;
     return TarEntry(header, Stream.value(data));
   }
 }
