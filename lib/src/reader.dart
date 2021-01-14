@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:charcode/charcode.dart';
 import 'package:chunked_stream/chunked_stream.dart';
 import 'package:meta/meta.dart';
-import 'package:typed_data/typed_buffers.dart';
+import 'package:typed_data/typed_data.dart';
 
 import 'constants.dart';
 import 'entry.dart';
@@ -457,7 +457,7 @@ class TarReader implements StreamIterator<TarEntry> {
   /// decimal. As such, this library treats values as being encoded in decimal.
   Future<List<SparseEntry>> _readGNUSparseMap1x0() async {
     var newLineCount = 0;
-    final block = Uint8Buffer();
+    final block = Uint8Queue();
 
     /// Ensures that [block] h as at least [n] tokens.
     Future<void> feedTokens(int n) async {
@@ -478,7 +478,7 @@ class TarReader implements StreamIterator<TarEntry> {
     String nextToken() {
       newLineCount--;
       final nextNewLineIndex = block.indexOf($lf);
-      final result = block.sublist(0, nextNewLineIndex).asUint8List();
+      final result = block.sublist(0, nextNewLineIndex);
       block.removeRange(0, nextNewLineIndex + 1);
       return result.readString(0, nextNewLineIndex);
     }
