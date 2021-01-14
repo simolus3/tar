@@ -32,11 +32,16 @@ class TarReader implements StreamIterator<TarEntry> {
 
   TarEntry? _current;
 
+  /// The underlying content stream for the [_current] entry. Draining this
+  /// stream will move the tar reader to the beginning of the next file.
+  ///
+  /// We prefer to drain this stream instead of `_current.stream` because it can
+  /// be much more efficient when dealing with sparse data which wouldn't be
+  /// expanded in this stream.
+  Stream<List<int>>? _underlyingContentStream;
+
   /// Whether [_current] has ever been listened to.
   bool _listenedToContentsOnce = false;
-
-  /// Whether there is an active stream that has not been fully consumed.
-  bool _currentStreamNullOrComplete = true;
 
   /// Whether we're in the process of reading tar headers.
   bool _isReadingHeaders = false;
@@ -197,10 +202,8 @@ class TarReader implements StreamIterator<TarEntry> {
         }
         nextHeader.format = format;
 
-        _current =
-            TarEntry(nextHeader, _publishStream(content, nextHeader.size));
+        _current = TarEntry(nextHeader, content);
         _listenedToContentsOnce = false;
-        _currentStreamNullOrComplete = false;
         _isReadingHeaders = false;
         return true;
       }
@@ -213,7 +216,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
     _isDone = true;
     _current = null;
-    _currentStreamNullOrComplete = true;
+    _underlyingContentStream = null;
     _listenedToContentsOnce = false;
     _isReadingHeaders = false;
 
@@ -254,7 +257,8 @@ class TarReader implements StreamIterator<TarEntry> {
     }
     _isReadingHeaders = true;
 
-    if (!_currentStreamNullOrComplete) {
+    final underlyingStream = _underlyingContentStream;
+    if (underlyingStream != null) {
       if (_listenedToContentsOnce) {
         throw StateError(
             'Illegal call to TarReader.moveNext() while a previous stream was '
@@ -262,8 +266,9 @@ class TarReader implements StreamIterator<TarEntry> {
             'When listening to tar contents, make sure the stream is '
             'complete or cancelled before calling TarReader.moveNext() again.');
       } else {
-        await current.contents.drain<void>();
-        assert(_currentStreamNullOrComplete);
+        await underlyingStream.drain<void>();
+        // The stream should reset when drained (we do this in _publishStream)
+        assert(_underlyingContentStream == null);
       }
     }
   }
@@ -341,9 +346,10 @@ class TarReader implements StreamIterator<TarEntry> {
       final sparseDataLength =
           sparseData.fold<int>(0, (value, element) => value + element.length);
 
-      final contents =
-          _chunkedStream.substream(nextBlockSize(sparseDataLength));
-      return sparseStream(contents, sparseHoles, header.size);
+      final streamLength = nextBlockSize(sparseDataLength);
+      final safeStream =
+          _publishStream(_chunkedStream.substream(streamLength), streamLength);
+      return sparseStream(safeStream, sparseHoles, header.size);
     } else {
       var size = header.size;
       if (!header.hasContent) size = 0;
@@ -353,10 +359,11 @@ class TarReader implements StreamIterator<TarEntry> {
       }
 
       if (size == 0) {
-        return const Stream<Never>.empty();
+        return _publishStream(const Stream<Never>.empty(), 0);
       } else {
         _markPaddingToSkip(size);
-        return _chunkedStream.substream(header.size);
+        return _publishStream(
+            _chunkedStream.substream(header.size), header.size);
       }
     }
   }
@@ -367,7 +374,10 @@ class TarReader implements StreamIterator<TarEntry> {
   /// expected length. It also sets the [_listenedToContents] field when the
   /// stream starts and resets it when it's done.
   Stream<List<int>> _publishStream(Stream<List<int>> stream, int length) {
-    return Stream.eventTransformed(stream, (sink) {
+    // There can only be one content stream at a time. This precondition is
+    // checked by _prepareToReadHeaders.
+    assert(_underlyingContentStream == null);
+    return _underlyingContentStream = Stream.eventTransformed(stream, (sink) {
       _listenedToContentsOnce = true;
 
       late _OutgoingStreamGuard guard;
@@ -377,7 +387,7 @@ class TarReader implements StreamIterator<TarEntry> {
         // Reset state when the stream is done. This will only be called when
         // the sream is done, not when a listener cancels.
         () {
-          _currentStreamNullOrComplete = true;
+          _underlyingContentStream = null;
           if (guard.hadError) {
             cancel();
           }

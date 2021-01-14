@@ -1,4 +1,5 @@
 import 'package:chunked_stream/chunked_stream.dart';
+import 'package:meta/meta.dart';
 
 import 'exception.dart';
 import 'utils.dart';
@@ -32,6 +33,7 @@ class SparseEntry {
 
 /// Generates a stream of the sparse file contents of size [size], given
 /// [sparseHoles] and the raw content in [source].
+@internal
 Stream<List<int>> sparseStream(
     Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) {
   if (sparseHoles.isEmpty) {
@@ -47,11 +49,6 @@ Stream<List<int>> sparseStream(
 /// [sparseHoles] has to be non-empty.
 Stream<List<int>> _sparseStream(
     Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) async* {
-  if (sparseHoles.isEmpty) {
-    ArgumentError.value(
-        sparseHoles, 'sparseHoles', 'sparseHoles should not be empty!');
-  }
-
   // Current logical position in sparse file.
   var position = 0;
 
