@@ -29,7 +29,7 @@ class _WritingTransformer extends StreamTransformerBase<TarEntry, List<int>> {
 ///
 /// When piping the resulting stream into a [StreamConsumer], consider using
 /// [WritingSink] directly.
-const tarWriter = _WritingTransformer();
+const StreamTransformer<TarEntry, List<int>> tarWriter = _WritingTransformer();
 
 /// Create a sink emitting encoded tar files to the [output] sink.
 ///
