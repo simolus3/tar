@@ -128,6 +128,13 @@ extension ByteBufferUtils on Uint8List {
 
 bool isNotAscii(int i) => i > 128;
 
+/// Like [int.parse], but throwing a [TarException] instead of the more-general
+/// [FormatException] when it fails.
+int parseInt(String source) {
+  return int.tryParse(source, radix: 10) ??
+      (throw TarException('Not an int: $source'));
+}
+
 /// Takes a [paxTimeString] of the form %d.%d as described in the PAX
 /// specification. Note that this implementation allows for negative timestamps,
 /// which is allowed for by the PAX specification, but not always portable.

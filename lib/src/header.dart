@@ -256,44 +256,39 @@ class HeaderImpl extends TarHeader {
         continue; // Keep the original USTAR value
       }
 
-      try {
-        switch (entry.key) {
-          case paxPath:
-            name = entry.value;
-            break;
-          case paxLinkpath:
-            linkName = entry.value;
-            break;
-          case paxUname:
-            userName = entry.value;
-            break;
-          case paxGname:
-            groupName = entry.value;
-            break;
-          case paxUid:
-            userId = int.parse(entry.value, radix: 10);
-            break;
-          case paxGid:
-            groupId = int.parse(entry.value, radix: 10);
-            break;
-          case paxAtime:
-            accessed = parsePaxTime(entry.value);
-            break;
-          case paxMtime:
-            modified = parsePaxTime(entry.value);
-            break;
-          case paxCtime:
-            changed = parsePaxTime(entry.value);
-            break;
-          case paxSize:
-            size = int.parse(entry.value, radix: 10);
-            break;
-          default:
-            break;
-        }
-      } catch (e) {
-        throw TarException.header('Invalid PAX header entry "${entry.key}: '
-            '${entry.value}"!');
+      switch (entry.key) {
+        case paxPath:
+          name = entry.value;
+          break;
+        case paxLinkpath:
+          linkName = entry.value;
+          break;
+        case paxUname:
+          userName = entry.value;
+          break;
+        case paxGname:
+          groupName = entry.value;
+          break;
+        case paxUid:
+          userId = parseInt(entry.value);
+          break;
+        case paxGid:
+          groupId = parseInt(entry.value);
+          break;
+        case paxAtime:
+          accessed = parsePaxTime(entry.value);
+          break;
+        case paxMtime:
+          modified = parsePaxTime(entry.value);
+          break;
+        case paxCtime:
+          changed = parsePaxTime(entry.value);
+          break;
+        case paxSize:
+          size = parseInt(entry.value);
+          break;
+        default:
+          break;
       }
     }
   }
