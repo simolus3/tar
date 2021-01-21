@@ -1,4 +1,4 @@
-## 0.3.0-dev
+## 0.3.0-nullsafety.0
 
 - Remove `TarReader.contents` and `TarReader.header`. Use `current.contents` and `current.header`, respectively.
 
@@ -12,7 +12,7 @@ in the GSoC 2020.
 - Remove `MemoryEntry`. Use `TarEntry.data` to create a tar entry from bytes.
 - Make `WritingSink` private. Use `tarWritingSink` to create a general `StreamSink<tar.Entry>`.
 - `TarReader` is now a [`StreamIterator`](https://api.dart.dev/stable/2.10.4/dart-async/StreamIterator-class.html),
-  the transformer had some design flaws
+  the transformer had some design flaws.
 
 ## 0.1.0-nullsafety.1
 

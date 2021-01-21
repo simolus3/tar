@@ -3,11 +3,11 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:charcode/charcode.dart';
 import 'package:chunked_stream/chunked_stream.dart';
 import 'package:meta/meta.dart';
 import 'package:typed_data/typed_data.dart';
 
+import 'charcodes.dart';
 import 'constants.dart';
 import 'entry.dart';
 import 'exception.dart';

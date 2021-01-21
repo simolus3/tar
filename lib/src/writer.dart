@@ -2,11 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:charcode/ascii.dart';
-import 'package:tar/src/format.dart';
-
+import 'charcodes.dart';
 import 'constants.dart';
 import 'entry.dart';
+import 'format.dart';
 import 'header.dart';
 
 class _WritingTransformer extends StreamTransformerBase<TarEntry, List<int>> {

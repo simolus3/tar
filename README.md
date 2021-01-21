@@ -101,4 +101,4 @@ Future<void> write(Stream<tar.Entry> entries) {
 -----
 
 Big thanks to [Garett Tok Ern Liang](https://github.com/walnutdust) for writing the initial 
-tar implementation this library is based on.
+Dart tar reader that this library is based on.

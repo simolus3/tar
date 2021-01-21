@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:charcode/charcode.dart';
-
+import 'charcodes.dart';
 import 'exception.dart';
 
 // Magic values to help us identify the TAR header type.

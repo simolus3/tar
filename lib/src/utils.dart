@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:charcode/charcode.dart';
-
+import 'charcodes.dart';
 import 'constants.dart';
 import 'exception.dart';
 
