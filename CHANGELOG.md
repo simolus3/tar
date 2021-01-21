@@ -1,6 +1,7 @@
 ## 0.3.0-nullsafety.0
 
 - Remove `TarReader.contents` and `TarReader.header`. Use `current.contents` and `current.header`, respectively.
+- Fix some minor implementation details
 
 ## 0.2.0-nullsafety
 
