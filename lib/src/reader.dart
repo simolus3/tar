@@ -229,7 +229,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
   /// Utility function for quickly iterating through all entries in [tarStream].
   static Future<void> forEach(Stream<List<int>> tarStream,
-      FutureOr<void> Function(TarEntry header) action) async {
+      FutureOr<void> Function(TarEntry entry) action) async {
     final reader = TarReader(tarStream);
     try {
       while (await reader.moveNext()) {
