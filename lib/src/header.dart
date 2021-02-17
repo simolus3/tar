@@ -7,6 +7,10 @@ import 'exception.dart';
 import 'format.dart';
 import 'utils.dart';
 
+/// Header of a tar entry
+///
+/// A tar header stores meta-information about the matching tar entry, such as
+/// its name.
 @sealed
 abstract class TarHeader {
   /// Type of header entry. In the V7 TAR format, this field was known as the
@@ -70,6 +74,7 @@ abstract class TarHeader {
     }
   }
 
+  /// Creates a tar header from the individual field.
   factory TarHeader({
     required String name,
     TarFormat? format,

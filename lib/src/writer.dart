@@ -25,8 +25,13 @@ class _WritingTransformer extends StreamTransformerBase<TarEntry, List<int>> {
 
 /// A stream transformer writing tar entries as byte streams.
 ///
+/// Regardless of the input stream, the stream returned by this
+/// [StreamTransformer.bind] is a single-subscription stream.
+/// Apart from that, subscriptions, cancellations, pauses and resumes are
+/// propagated as one would expect from a [StreamTransformer].
+///
 /// When piping the resulting stream into a [StreamConsumer], consider using
-/// [WritingSink] directly.
+/// [tarWritingSink] directly.
 const StreamTransformer<TarEntry, List<int>> tarWriter = _WritingTransformer();
 
 /// Create a sink emitting encoded tar files to the [output] sink.
@@ -34,12 +39,14 @@ const StreamTransformer<TarEntry, List<int>> tarWriter = _WritingTransformer();
 /// For instance, you can use this to write a tar file:
 ///
 /// ```dart
-/// import 'package:tar/tar.dart' as tar;
+/// import 'dart:convert';
+/// import 'dart:io';
+/// import 'package:tar/tar.dart';
 ///
 /// Future<void> main() async {
-///   Stream<tar.TarEntry> entries = Stream.value(
-///     tar.MemoryEntry(
-///       tar.Header(
+///   Stream<TarEntry> entries = Stream.value(
+///     TarEntry.data(
+///       TarHeader(
 ///         name: 'example.txt',
 ///         mode: int.parse('644', radix: 8),
 ///       ),
@@ -48,12 +55,12 @@ const StreamTransformer<TarEntry, List<int>> tarWriter = _WritingTransformer();
 ///   );
 ///
 ///   final output = File('/tmp/test.tar').openWrite();
-///   await entries.pipe(tar.WritingSink(output));
-/// }
+///   await entries.pipe(tarWritingSink(output));
+///  }
 /// ```
 ///
-/// Note that, if you don't set the [TarHeader.size], outgoing tar entries need to
-/// be buffered once, which decreases performance.
+/// Note that, if you don't set the [TarHeader.size], outgoing tar entries need
+/// to be buffered once, which decreases performance.
 ///
 /// See also:
 ///  - [tarWriter], a stream transformer using this sink

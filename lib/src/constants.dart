@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'charcodes.dart';
 import 'exception.dart';
+import 'header.dart' show TarHeader; // for dartdoc
 
 // Magic values to help us identify the TAR header type.
 const magicGnu = [$u, $s, $t, $a, $r, $space]; // 'ustar '
@@ -20,7 +21,7 @@ enum TypeFlag {
   /// [reg] indicates regular files.
   ///
   /// Old tar implementations have a seperate `TypeRegA` value. This library
-  /// will transparently read those as [reag].
+  /// will transparently read those as [regA].
   reg,
 
   /// Legacy-version of [reg] in old tar implementations.
@@ -79,8 +80,6 @@ enum TypeFlag {
 }
 
 /// Generates the corresponding [TypeFlag] associated with [byte].
-///
-/// Users should the result check with [validateTypeFlag] once.
 TypeFlag typeflagFromByte(int byte) {
   switch (byte) {
     case $0:

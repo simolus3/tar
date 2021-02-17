@@ -21,10 +21,10 @@ class TarEntry {
   /// [contents] is a single-subscription streamed backed by the original stream
   /// used to create the reader.
   /// When listening on [contents], the stream needs to be fully drained before
-  /// the next call to [StreamIterator.next]. It's acceptable to not listen to
-  /// [contents] at all before calling [StreamIterator.next] again. In that
-  /// case, this library will take care of draining the stream to get to the
-  /// next entry.
+  /// the next call to [StreamIterator.moveNext]. It's acceptable to not listen
+  /// to [contents] at all before calling [StreamIterator.moveNext] again.
+  /// In that case, this library will take care of draining the stream to get to
+  /// the next entry.
   final Stream<List<int>> contents;
 
   /// The name of this entry, as indicated in the header or a previous pax

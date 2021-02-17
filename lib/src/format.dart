@@ -45,30 +45,30 @@ class TarFormat {
     return possibleNames.join(' or ');
   }
 
-  /// Returns if [other] is a possible resolution of [this].
+  /// Returns if [other] is a possible resolution of `this`.
   ///
   /// For example, a [TarFormat] with a value of 6 means that we do not have
-  /// enough information to determine if it is [TarFormat.USTAR] or
-  /// [TarFormat.PAX], so either of them could be possible resolutions of
-  /// [this].
+  /// enough information to determine if it is [TarFormat.ustar] or
+  /// [TarFormat.pax], so either of them could be possible resolutions of
+  /// `this`.
   bool has(TarFormat other) => _value & other._value != 0;
 
   /// Returns a new [TarFormat] that signifies that it can be either
-  /// [this] or [other]'s format.
+  /// `this` or [other]'s format.
   ///
   /// **Example:**
   /// ```dart
   /// TarFormat format = TarFormat.USTAR | TarFormat.PAX;
   /// ```
   ///
-  /// The above code would signify that we have limited [format] to either
+  /// The above code would signify that we have limited `format` to either
   /// the USTAR or PAX format, but need further information to refine the guess.
   TarFormat operator |(TarFormat other) {
     return mayBe(other);
   }
 
   /// Returns a new [TarFormat] that signifies that it can be either
-  /// [this] or [other]'s format.
+  /// `this` or [other]'s format.
   ///
   /// **Example:**
   /// ```dart
@@ -93,7 +93,7 @@ class TarFormat {
   /// format = format.mayOnlyBe(TarFormat.USTAR);
   /// ```
   ///
-  /// In the above example, we found that [format] could either be PAX or USTAR,
+  /// In the above example, we found that `format` could either be PAX or USTAR,
   /// but later learnt that it can only be the USTAR format.
   ///
   /// If [has(other) == false], [mayOnlyBe] will result in an unknown
@@ -184,9 +184,9 @@ class TarFormat {
 
   /// PAX header format defined in POSIX.1-2001.
   ///
-  /// PAX extends USTAR by writing a special file with either the [typeXHeader]
-  /// or [typeXGlobalHeader] type flags to allow for attributes that are not
-  /// conveniently stored in a POSIX ustar archive to be held.
+  /// PAX extends USTAR by writing a special file with either the `x` or `g`
+  /// type flags to allow for attributes that are not conveniently stored in a
+  /// POSIX ustar archive to be held.
   ///
   /// Some newer formats add their own extensions to PAX by defining their
   /// own keys and assigning certain semantic meaning to the associated values.

@@ -36,7 +36,7 @@ class TarReader implements StreamIterator<TarEntry> {
   /// stream will move the tar reader to the beginning of the next file.
   ///
   /// This is not the same as `_current.stream` for sparse files, which are
-  /// reported as expanded through [TarEntry.stream].
+  /// reported as expanded through [TarEntry.contents].
   /// For that reason, we prefer to drain this stream when skipping a tar entry.
   /// When we know we're skipping data, there's no point expanding sparse holes.
   ///
@@ -243,8 +243,8 @@ class TarReader implements StreamIterator<TarEntry> {
   /// Ensures that this reader can safely read headers now.
   ///
   /// This methods prevents:
-  ///  * concurrent calls to [next]
-  ///  * a call to [next] while a stream is active:
+  ///  * concurrent calls to [moveNext]
+  ///  * a call to [moveNext] while a stream is active:
   ///    * if [contents] has never been listened to, we drain the stream
   ///    * otherwise, throws a [StateError]
   Future<void> _prepareToReadHeaders() async {
@@ -375,8 +375,8 @@ class TarReader implements StreamIterator<TarEntry> {
   /// Publishes an library-internal stream for users.
   ///
   /// This adds a check to ensure that the stream we're exposing has the
-  /// expected length. It also sets the [_listenedToContents] field when the
-  /// stream starts and resets it when it's done.
+  /// expected length. It also sets the [_underlyingContentStream] field when
+  /// the stream starts and resets it when it's done.
   Stream<List<int>> _publishStream(Stream<List<int>> stream, int length) {
     // There can only be one content stream at a time. This precondition is
     // checked by _prepareToReadHeaders.
@@ -582,7 +582,7 @@ class TarReader implements StreamIterator<TarEntry> {
   /// If it's larger than four entries, then one or more extension headers are
   /// used to store the rest of the sparse map.
   ///
-  /// [header.size] does not reflect the size of any extended headers used.
+  /// [TarHeader.size] does not reflect the size of any extended headers used.
   /// Thus, this function will read from the chunked stream iterator to fetch
   /// extra headers.
   ///
@@ -689,15 +689,15 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
   /// Decodes the content of an extended pax header entry.
   ///
-  /// Semantically, a [PAX Header][posixPax] is a map with string keys and
+  /// Semantically, a [PAX Header][posix pax] is a map with string keys and
   /// values, where both keys and values are encodes with utf8.
   ///
-  /// However, [old GNU Versions][gnuSparse00] used to repeat keys to store
+  /// However, [old GNU Versions][gnu sparse00] used to repeat keys to store
   /// sparse file information in sparse headers. This method will transparently
   /// rewrite the PAX format of version 0.0 to version 0.1.
   ///
-  /// [posixPax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  /// [gnuSparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
+  /// [posix pax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
+  /// [gnu sparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
   void readPaxHeaders(List<int> data, bool isGlobal,
       {bool ignoreUnknown = true}) {
     var offset = 0;
