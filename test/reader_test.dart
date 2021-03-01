@@ -767,13 +767,13 @@ void main() {
 
     for (final testInputs in tests) {
       test('${testInputs['file']}', () async {
-        final tarReader = TarReader(open(testInputs['file'] as String),
+        final tarReader = TarReader(open(testInputs['file']! as String),
             maxSpecialFileSize: 16000);
 
         if (testInputs['error'] == true) {
           expect(tarReader.moveNext(), throwsFormatException);
         } else {
-          final expectedHeaders = testInputs['headers'] as List<TarHeader>;
+          final expectedHeaders = testInputs['headers']! as List<TarHeader>;
 
           for (var i = 0; i < expectedHeaders.length; i++) {
             expect(await tarReader.moveNext(), isTrue);

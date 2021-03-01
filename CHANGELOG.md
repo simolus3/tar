@@ -1,3 +1,7 @@
+## 0.3.0
+
+- Remove outdated references in the documentation
+
 ## 0.3.0-nullsafety.0
 
 - Remove `TarReader.contents` and `TarReader.header`. Use `current.contents` and `current.header`, respectively.
