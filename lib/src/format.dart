@@ -96,7 +96,7 @@ class TarFormat {
   /// In the above example, we found that `format` could either be PAX or USTAR,
   /// but later learnt that it can only be the USTAR format.
   ///
-  /// If [has(other) == false], [mayOnlyBe] will result in an unknown
+  /// If `has(other) == false`, [mayOnlyBe] will result in an unknown
   /// [TarFormat].
   TarFormat mayOnlyBe(TarFormat other) {
     return TarFormat._internal(_value & other._value);
@@ -121,8 +121,7 @@ class TarFormat {
   /// 124   | 136 | Size of file, as octal number in ASCII.
   /// 136   | 148 | Modification time of file, number of seconds from epoch,
   ///               stored as an octal number in ASCII.
-  /// 148   | 156 | Header checksum, stored as an octal number in ASCII. See
-  ///               [computeUnsignedChecksum] for more details.
+  /// 148   | 156 | Header checksum, stored as an octal number in ASCII.
   /// 156   | 157 | Link flag, determines the kind of header.
   /// 157   | 257 | Link name, stored as a string.
   /// 257   | 512 | NUL pad.
@@ -148,8 +147,7 @@ class TarFormat {
   /// 124   | 136 | Size of file, as octal number in ASCII.
   /// 136   | 148 | Modification time of file, number of seconds from epoch,
   ///               stored as an octal number in ASCII.
-  /// 148   | 156 | Header checksum, stored as an octal number in ASCII. See
-  ///               [computeUnsignedChecksum] for more details.
+  /// 148   | 156 | Header checksum, stored as an octal number in ASCII.
   /// 156   | 157 | Type flag, determines the kind of header.
   ///               Note that the meaning of the size field depends on the type.
   /// 157   | 257 | Link name, stored as a string.
@@ -216,8 +214,7 @@ class TarFormat {
   /// 124   | 136 | Size of file, as octal number in ASCII.
   /// 136   | 148 | Modification time of file, number of seconds from epoch,
   ///               stored as an octal number in ASCII.
-  /// 148   | 156 | Header checksum, stored as an octal number in ASCII. See
-  ///               [computeUnsignedChecksum] for more details.
+  /// 148   | 156 | Header checksum, stored as an octal number in ASCII.
   /// 156   | 157 | Type flag, determines the kind of header.
   ///               Note that the meaning of the size field depends on the type.
   /// 157   | 257 | Link name, stored as a string.
@@ -264,8 +261,7 @@ class TarFormat {
   /// 124   | 136 | Size of file, as octal number in ASCII.
   /// 136   | 148 | Modification time of file, number of seconds from epoch,
   ///               stored as an octal number in ASCII.
-  /// 148   | 156 | Header checksum, stored as an octal number in ASCII. See
-  ///               [computeUnsignedChecksum] for more details.
+  /// 148   | 156 | Header checksum, stored as an octal number in ASCII.
   /// 156   | 157 | Type flag, determines the kind of header.
   ///               Note that the meaning of the size field depends on the type.
   /// 157   | 257 | Link name, stored as a string.
