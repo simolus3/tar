@@ -59,7 +59,25 @@ class TarReader implements StreamIterator<TarEntry> {
   ///  - an error was emitted through a tar entry's content stream
   bool _isDone = false;
 
+  /// Whether we should ensure that the stream emits no further data after the
+  /// end of the tar file was reached.
+  final bool _checkNoTrailingData;
+
   /// Creates a tar reader reading from the raw [tarStream].
+  ///
+  /// The [disallowTrailingData] parameter can be enabled to assert that the
+  /// [tarStream] contains exactly one tar archive before ending.
+  /// When [disallowTrailingData] is disabled (which is the default), the reader
+  /// will automatically cancel its stream subscription when [moveNext] returns
+  /// `false`.
+  /// When it is enabled and a marker indicating the end of an archive is
+  /// encountered, [moveNext] will wait for further events on the stream. If
+  /// further data is received, a [TarException] will be thrown and the
+  /// subscription will be cancelled. Otherwise, [moveNext] effectively waits
+  /// for a done event, making a cancellation unecessary.
+  /// Depending on the input stream, cancellations may cause unintended
+  /// side-effects. In that case, [disallowTrailingData] can be used to ensure
+  /// that the stream is only cancelled if it emits an invalid tar file.
   ///
   /// The [maxSpecialFileSize] parameter can be used to limit the maximum length
   /// of hidden entries in the tar stream. These entries include extended PAX
@@ -68,8 +86,10 @@ class TarReader implements StreamIterator<TarEntry> {
   /// avoid memory-based denial-of-service attacks, this library limits their
   /// maximum length. Changing the default of 2 KiB is rarely necessary.
   TarReader(Stream<List<int>> tarStream,
-      {int maxSpecialFileSize = defaultSpecialLength})
+      {int maxSpecialFileSize = defaultSpecialLength,
+      bool disallowTrailingData = false})
       : _chunkedStream = ChunkedStreamIterator(tarStream),
+        _checkNoTrailingData = disallowTrailingData,
         _maxSpecialFileSize = maxSpecialFileSize;
 
   @override
@@ -125,11 +145,12 @@ class TarReader implements StreamIterator<TarEntry> {
 
     HeaderImpl? nextHeader;
 
-    /// Externally, [next] iterates through the tar archive as if it is a series
-    /// of files. Internally, the tar format often uses fake "files" to add meta
-    /// data that describes the next file. These meta data "files" should not
-    /// normally be visible to the outside. As such, this loop iterates through
-    /// one or more "header files" until it finds a "normal file".
+    // Externally, [moveNext] iterates through the tar archive as if it is a
+    // series of files. Internally, the tar format often uses fake "files" to
+    // add meta data that describes the next file. These meta data "files"
+    // should not normally be visible to the outside. As such, this loop
+    // iterates through one or more "header files" until it finds a
+    // "normal file".
     while (true) {
       if (_skipNext > 0) {
         await _readFullBlock(_skipNext);
@@ -142,7 +163,7 @@ class TarReader implements StreamIterator<TarEntry> {
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
         if (eofAcceptable) {
-          await cancel();
+          await _handleExpectedEof();
           return false;
         } else {
           _unexpectedEof();
@@ -224,6 +245,8 @@ class TarReader implements StreamIterator<TarEntry> {
     _listenedToContentsOnce = false;
     _isReadingHeaders = false;
 
+    // Note: Calling cancel is safe when the stream has already been completed.
+    // It's a noop in that case, which is what we want.
     return _chunkedStream.cancel();
   }
 
@@ -284,6 +307,20 @@ class TarReader implements StreamIterator<TarEntry> {
     }
 
     return size;
+  }
+
+  Future<void> _handleExpectedEof() async {
+    if (_checkNoTrailingData) {
+      // This will be empty iff the stream is done
+      final furtherData = await _chunkedStream.read(1);
+
+      // Note that throwing will automatically cancel the reader
+      if (furtherData.isNotEmpty) {
+        throw TarException('Illegal content after the end of the tar archive.');
+      }
+    }
+
+    await cancel();
   }
 
   Never _unexpectedEof() {

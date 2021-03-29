@@ -1,3 +1,9 @@
+## 0.3.1
+
+- Add `disallowTrailingData` parameter to `TarReader`. When the option is set,
+  `readNext` will ensure that the input stream does not emit further data after
+  the tar archive has been read fully.
+
 ## 0.3.0
 
 - Remove outdated references in the documentation

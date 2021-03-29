@@ -71,7 +71,7 @@ void main() {
       final zeroBlock = Uint8List(512);
       final controller = StreamController<List<int>>();
       controller.onListen = () {
-        controller..add(zeroBlock)..add(zeroBlock);
+        controller..add(zeroBlock)..add(zeroBlock)..add(zeroBlock);
       };
 
       final reader = TarReader(controller.stream);
@@ -111,6 +111,54 @@ void main() {
 
       expect(controller.hasListener, isFalse);
       await iterator.cancel();
+    });
+  });
+
+  group('disallowTrailingData: true', () {
+    final emptyBlock = Uint8List(512);
+
+    void closeLater(StreamController<Object?> controller) {
+      controller.onCancel = () => fail('Should not cancel stream subscription');
+
+      Timer.run(() {
+        // Calling close() implicitly cancels the stream subscription, we only
+        // want to ensure that the reader is not doing that.
+        controller.onCancel = null;
+        expect(controller.hasListener, isTrue,
+            reason: 'Should have a listener');
+
+        controller.close();
+      });
+    }
+
+    test('throws for trailing data', () async {
+      final input = StreamController<Uint8List>()
+        ..add(emptyBlock)
+        ..add(emptyBlock)
+        ..add(Uint8List(1)); // illegal content after end marker
+
+      final reader = TarReader(input.stream, disallowTrailingData: true);
+      await expectLater(reader.moveNext(), throwsA(isA<TarException>()));
+      expect(input.hasListener, isFalse,
+          reason: 'Should have cancelled subscription after error.');
+    });
+
+    test('does not throw or cancel if the stream ends as expected', () {
+      final input = StreamController<Uint8List>()
+        ..add(emptyBlock)
+        ..add(emptyBlock);
+      closeLater(input);
+
+      final reader = TarReader(input.stream, disallowTrailingData: true);
+      expectLater(reader.moveNext(), completion(isFalse));
+    });
+
+    test('does not throw or cancel if the stream ends without marker', () {
+      final input = StreamController<Uint8List>();
+      closeLater(input);
+
+      final reader = TarReader(input.stream, disallowTrailingData: true);
+      expectLater(reader.moveNext(), completion(isFalse));
     });
   });
 
