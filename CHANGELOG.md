@@ -1,3 +1,8 @@
+## 0.3.2
+
+- Allow arbitrarily many zero bytes at the end of an archive when
+  `disallowTrailingData` is enabled.
+
 ## 0.3.1
 
 - Add `disallowTrailingData` parameter to `TarReader`. When the option is set,
