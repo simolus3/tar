@@ -309,15 +309,20 @@ class TarReader implements StreamIterator<TarEntry> {
     return size;
   }
 
+  /// Ater we detected the end of a tar file, optionally check for trailing
+  /// data.
   Future<void> _handleExpectedEof() async {
     if (_checkNoTrailingData) {
-      // This will be empty iff the stream is done
-      final furtherData = await _chunkedStream.read(1);
-
-      // Note that throwing will automatically cancel the reader
-      if (furtherData.isNotEmpty) {
-        throw TarException('Illegal content after the end of the tar archive.');
-      }
+      // Trailing zeroes are okay, but don't allow any more data here.
+      Uint8List block;
+      do {
+        block = await _chunkedStream.readBytes(blockSize);
+        if (!block.isAllZeroes) {
+          throw TarException(
+              'Illegal content after the end of the tar archive.');
+        }
+      } while (block.length == blockSize);
+      // The stream is done when we couldn't read the full block.
     }
 
     await cancel();

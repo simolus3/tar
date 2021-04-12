@@ -135,7 +135,12 @@ void main() {
       final input = StreamController<Uint8List>()
         ..add(emptyBlock)
         ..add(emptyBlock)
-        ..add(Uint8List(1)); // illegal content after end marker
+        // illegal content after end marker
+        ..add(Uint8List.fromList([0, 1, 2, 3]));
+
+      // The reader checks for empty data in chunks, so we timeout if the stream
+      // goes stale.
+      Timer.run(input.close);
 
       final reader = TarReader(input.stream, disallowTrailingData: true);
       await expectLater(reader.moveNext(), throwsA(isA<TarException>()));
@@ -147,6 +152,17 @@ void main() {
       final input = StreamController<Uint8List>()
         ..add(emptyBlock)
         ..add(emptyBlock);
+      closeLater(input);
+
+      final reader = TarReader(input.stream, disallowTrailingData: true);
+      expectLater(reader.moveNext(), completion(isFalse));
+    });
+
+    test('does not throw or cancel when there are many empty blocks', () {
+      final input = StreamController<Uint8List>();
+      for (var i = 0; i < 100; i++) {
+        input.add(emptyBlock);
+      }
       closeLater(input);
 
       final reader = TarReader(input.stream, disallowTrailingData: true);

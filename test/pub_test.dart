@@ -11,17 +11,18 @@ import 'package:test/test.dart';
 void main() {
   const onceBroken = [
     'access_settings_menu-0.0.1',
+    'pana-0.12.19',
     'RAL-1.28.0',
     'rikulo_commons-0.7.6',
   ];
 
   for (final package in onceBroken) {
-    test('can read $package', () {
+    test('can read $package', () async {
       final file = File('reference/pub/$package.tar.gz');
       final tarStream = file.openRead().transform(gzip.decoder);
-      return TarReader.forEach(tarStream, (entry) {
-        // do nothing, we just want to make sure that the package can be read.
-      });
+
+      final reader = TarReader(tarStream, disallowTrailingData: true);
+      while (await reader.moveNext()) {}
     });
   }
 }
