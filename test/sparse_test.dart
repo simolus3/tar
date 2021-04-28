@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:chunked_stream/chunked_stream.dart';
+import 'package:async/async.dart';
 import 'package:tar/src/sparse.dart';
 import 'package:tar/tar.dart';
 import 'package:test/test.dart';
@@ -77,12 +77,12 @@ Future<void> validate(Stream<List<int>> tar, Map<String, String> files) async {
       fail('Unexpected file $fileName in tar file');
     }
 
-    final actualContents = ChunkedStreamIterator(File(matchingFile).openRead());
-    final tarContents = ChunkedStreamIterator(reader.current.contents);
+    final actualContents = ChunkedStreamReader(File(matchingFile).openRead());
+    final tarContents = ChunkedStreamReader(reader.current.contents);
 
     while (true) {
-      final actualChunk = await actualContents.read(1024);
-      final tarChunk = await tarContents.read(1024);
+      final actualChunk = await actualContents.readBytes(1024);
+      final tarChunk = await tarContents.readBytes(1024);
       expect(tarChunk, actualChunk);
 
       if (actualChunk.isEmpty) break;

@@ -1,3 +1,7 @@
+## 0.3.3
+
+- Drop `chunked_stream` dependency in favor of `package:async`.
+
 ## 0.3.2
 
 - Allow arbitrarily many zero bytes at the end of an archive when

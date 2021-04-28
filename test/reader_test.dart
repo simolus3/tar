@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:chunked_stream/chunked_stream.dart';
+import 'package:async/async.dart';
 import 'package:tar/src/reader.dart';
 import 'package:tar/src/utils.dart';
 import 'package:test/test.dart';
@@ -95,12 +95,11 @@ void main() {
     test('if the stream emits an error in content', () async {
       // Craft a stream that starts with a valid tar file, but then emits an
       // error in the middle of an entry. First 512 bytes are headers.
-      final iterator =
-          ChunkedStreamIterator(File('reference/v7.tar').openRead());
+      final iterator = ChunkedStreamReader(File('reference/v7.tar').openRead());
       final controller = StreamController<List<int>>();
       controller.onListen = () async {
         // headers + 3 bytes of content
-        await controller.addStream(iterator.substream(515));
+        await controller.addStream(iterator.readStream(515));
         controller.addError('foo');
       };
 

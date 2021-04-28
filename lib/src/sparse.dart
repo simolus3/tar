@@ -1,4 +1,4 @@
-import 'package:chunked_stream/chunked_stream.dart';
+import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
 import 'exception.dart';
@@ -37,7 +37,7 @@ class SparseEntry {
 Stream<List<int>> sparseStream(
     Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) {
   if (sparseHoles.isEmpty) {
-    return ChunkedStreamIterator(source).substream(size);
+    return ChunkedStreamReader(source).readStream(size);
   }
 
   return _sparseStream(source, sparseHoles, size);
@@ -56,7 +56,7 @@ Stream<List<int>> _sparseStream(
   var sparseHoleIndex = 0;
 
   // Iterator through [source] to obtain the data bytes.
-  final iterator = ChunkedStreamIterator(source);
+  final iterator = ChunkedStreamReader(source);
 
   while (position < size) {
     // Yield all the necessary sparse holes.
@@ -79,7 +79,7 @@ Stream<List<int>> _sparseStream(
 
     // Yield data as substream, but make sure that we have enough data.
     var checkedPosition = position;
-    await for (final chunk in iterator.substream(yieldTo - position)) {
+    await for (final chunk in iterator.readStream(yieldTo - position)) {
       yield chunk;
       checkedPosition += chunk.length;
     }

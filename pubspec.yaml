@@ -1,13 +1,13 @@
 name: tar
 description: Memory-efficient, streaming implementation of the tar file format
-version: 0.3.2
+version: 0.3.3
 repository: https://github.com/simolus3/tar/
 
 environment:
   sdk: '>=2.12.0 <3.0.0'
 
 dependencies:
-  chunked_stream: ^1.4.0
+  async: ^2.6.0
   meta: ^1.3.0
   typed_data: ^1.3.0
 

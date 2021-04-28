@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:chunked_stream/chunked_stream.dart';
+import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 import 'package:typed_data/typed_data.dart';
 
@@ -23,7 +23,7 @@ import 'utils.dart';
 @sealed
 class TarReader implements StreamIterator<TarEntry> {
   /// A chunked stream iterator to enable us to get our data.
-  final ChunkedStreamIterator<int> _chunkedStream;
+  final ChunkedStreamReader<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
   final int _maxSpecialFileSize;
 
@@ -88,7 +88,7 @@ class TarReader implements StreamIterator<TarEntry> {
   TarReader(Stream<List<int>> tarStream,
       {int maxSpecialFileSize = defaultSpecialLength,
       bool disallowTrailingData = false})
-      : _chunkedStream = ChunkedStreamIterator(tarStream),
+      : _chunkedStream = ChunkedStreamReader(tarStream),
         _checkNoTrailingData = disallowTrailingData,
         _maxSpecialFileSize = maxSpecialFileSize;
 
@@ -315,6 +315,7 @@ class TarReader implements StreamIterator<TarEntry> {
     if (_checkNoTrailingData) {
       // Trailing zeroes are okay, but don't allow any more data here.
       Uint8List block;
+
       do {
         block = await _chunkedStream.readBytes(blockSize);
         if (!block.isAllZeroes) {
@@ -394,7 +395,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
       final streamLength = nextBlockSize(sparseDataLength);
       final safeStream =
-          _publishStream(_chunkedStream.substream(streamLength), streamLength);
+          _publishStream(_chunkedStream.readStream(streamLength), streamLength);
       return sparseStream(safeStream, sparseHoles, header.size);
     } else {
       var size = header.size;
@@ -409,7 +410,7 @@ class TarReader implements StreamIterator<TarEntry> {
       } else {
         _markPaddingToSkip(size);
         return _publishStream(
-            _chunkedStream.substream(header.size), header.size);
+            _chunkedStream.readStream(header.size), header.size);
       }
     }
   }
@@ -860,7 +861,7 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
 /// Event-sink tracking the length of emitted tar entry streams.
 ///
-/// [ChunkedStreamIterator.substream] might return a stream shorter than
+/// [ChunkedStreamReader.readStream] might return a stream shorter than
 /// expected. That indicates an invalid tar file though, since the correct size
 /// is stored in the header.
 class _OutgoingStreamGuard extends EventSink<List<int>> {
