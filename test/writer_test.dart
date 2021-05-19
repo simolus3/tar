@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
@@ -76,11 +75,10 @@ void main() {
 
   group('refuses to write files with OutputFormat.gnu', () {
     void shouldThrow(tar.TarEntry entry) {
-      final output = File('/dev/null').openWrite();
+      final output = tar.tarWritingSink(_NullStreamSink(),
+          format: tar.OutputFormat.gnuLongName);
       expect(
-          Stream.value(entry).pipe(
-              tar.tarWritingSink(output, format: tar.OutputFormat.gnuLongName)),
-          throwsA(isA<tar.TarException>()));
+          Stream.value(entry).pipe(output), throwsA(isA<tar.TarException>()));
     }
 
     test('when they are too large', () {
@@ -110,4 +108,26 @@ void main() {
       );
     });
   });
+}
+
+class _NullStreamSink<T> extends StreamSink<T> {
+  @override
+  void add(T event) {}
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {
+    // ignore: only_throw_errors
+    throw error;
+  }
+
+  @override
+  Future<void> addStream(Stream<T> stream) {
+    return stream.forEach(add);
+  }
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<void> get done => close();
 }
