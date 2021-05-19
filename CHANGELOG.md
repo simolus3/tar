@@ -1,3 +1,8 @@
+## 0.4.0
+
+- Support generating tar files with GNU-style long link names
+ - Add `format` parameter to `tarWritingSink` and `tarTransformerWith`
+
 ## 0.3.3
 
 - Drop `chunked_stream` dependency in favor of `package:async`.

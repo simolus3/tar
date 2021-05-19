@@ -42,10 +42,10 @@ Stream<List<int>> createTarStream(Iterable<String> files,
   yield* tar.stdout;
 }
 
-Future<Process> writeToTar(
-    List<String> args, Stream<tar.TarEntry> entries) async {
+Future<Process> writeToTar(List<String> args, Stream<tar.TarEntry> entries,
+    {tar.OutputFormat format = tar.OutputFormat.pax}) async {
   final proc = await startTar(args);
-  await entries.pipe(tar.tarWritingSink(proc.stdin));
+  await entries.pipe(tar.tarWritingSink(proc.stdin, format: format));
 
   return proc;
 }

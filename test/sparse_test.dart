@@ -1,3 +1,4 @@
+@TestOn('!windows') // We currently use the tar executable to create test inputs
 import 'dart:io';
 
 import 'dart:math';
