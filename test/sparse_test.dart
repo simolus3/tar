@@ -137,7 +137,11 @@ void main() {
     return validate(tar, files);
   }
 
-  for (final format in ['gnu', 'v7', 'oldgnu', 'posix', 'ustar']) {
+  final allowedFormats = Platform.isLinux
+      ? {'gnu', 'v7', 'oldgnu', 'posix', 'ustar'}
+      : {'v7', 'posix', 'ustar'};
+
+  for (final format in allowedFormats) {
     group('reads large files in $format', () {
       test('single file', () {
         return testSubset(['reg_1'], format, null);
@@ -149,7 +153,7 @@ void main() {
     });
   }
 
-  for (final format in ['gnu', 'posix']) {
+  for (final format in {'gnu', 'posix'}.intersection(allowedFormats)) {
     for (final sparseVersion in ['0.0', '0.1', '1.0']) {
       group('sparse format $format, version $sparseVersion', () {
         test('reads a clean sparse file', () {
