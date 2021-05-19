@@ -76,11 +76,6 @@ Future<void> main() async {
 }
 ```
 
-Note that tar files are always written in the pax format defined by the POSIX.1-2001 specification
-(`--format=posix` in GNU tar).
-When all entries have file names shorter than 100 chars and a size smaller than 8 GB, this is
-equivalent to the `ustar` format. This library won't write PAX headers when there is no reason to do so.
-
 To write `.tar.gz` files, you can again transform the stream twice:
 
 ```dart
@@ -92,6 +87,25 @@ Future<void> write(Stream<TarEntry> entries) {
       .transform(tarWriter)
       .transform(gzip.encoder)
       .pipe(File('output.tar.gz').openWrite());
+}
+```
+
+Note that, by default, tar files are  written in the pax format defined by the
+POSIX.1-2001 specification (`--format=posix` in GNU tar).
+When all entries have file names shorter than 100 chars and a size smaller 
+than 8 GB, this is equivalent to the `ustar` format. This library won't write
+PAX headers when there is no reason to do so.
+If you prefer writing GNU-style long filenames instead, you can use the
+`format` option:
+
+```dart
+Future<void> write(Stream<TarEntry> entries) {
+  return entries
+      .transform(tarWriterWith(format: OutputFormat.gnuLongName))
+      .pipe(tarWritingSink(
+        File('output.tar.gz').openWrite(),
+        format: OutputFormat.gnuLongName,
+      ));
 }
 ```
 
