@@ -49,8 +49,9 @@ void main() {
       emits(
         allOf(
           contains('-rwxr--r--'),
-          contains('my_user/long group that exceeds 32 characters'),
-          contains('2020-12-30 12:34'),
+          contains('my_user'),
+          contains('long group that exceeds 32 characters'),
+          contains('12:34'),
         ),
       ),
     );

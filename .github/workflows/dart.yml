@@ -46,9 +46,13 @@ jobs:
         with:
           path: .dart_tool
           key: dart-tool-${{ hashFiles('pubspec.yaml') }}
-      
+            
       - name: "Get dependencies"
         run: dart pub get
+
+      - name: "Download 7za"
+        run: dart run tool/download_7za.dart
+        if: runner.os == 'Windows'
       
       - name: "Run tests"
-        run: dart test    
+        run: dart test
