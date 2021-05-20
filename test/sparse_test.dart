@@ -1,4 +1,4 @@
-@TestOn('!windows') // We currently use the tar executable to create test inputs
+@TestOn('linux') // We currently use gnu tar to create test inputs
 import 'dart:io';
 
 import 'dart:math';
@@ -137,11 +137,7 @@ void main() {
     return validate(tar, files);
   }
 
-  final allowedFormats = Platform.isLinux
-      ? {'gnu', 'v7', 'oldgnu', 'posix', 'ustar'}
-      : {'v7', 'posix', 'ustar'};
-
-  for (final format in allowedFormats) {
+  for (final format in ['gnu', 'v7', 'oldgnu', 'posix', 'ustar']) {
     group('reads large files in $format', () {
       test('single file', () {
         return testSubset(['reg_1'], format, null);
@@ -153,7 +149,7 @@ void main() {
     });
   }
 
-  for (final format in {'gnu', 'posix'}.intersection(allowedFormats)) {
+  for (final format in ['gnu', 'posix']) {
     for (final sparseVersion in ['0.0', '0.1', '1.0']) {
       group('sparse format $format, version $sparseVersion', () {
         test('reads a clean sparse file', () {

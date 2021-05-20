@@ -53,10 +53,6 @@ jobs:
       - name: "Download 7za"
         run: dart run tool/download_7za.dart
         if: runner.os == 'Windows'
-
-      - name: Install truncate (macOS)
-        run: brew install truncate
-        if: runner.os == 'macOS'
       
       - name: "Run tests"
         run: dart test
