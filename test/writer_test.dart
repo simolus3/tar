@@ -77,8 +77,7 @@ void main() {
     void shouldThrow(tar.TarEntry entry) {
       final output = tar.tarWritingSink(_NullStreamSink(),
           format: tar.OutputFormat.gnuLongName);
-      expect(
-          Stream.value(entry).pipe(output), throwsA(isA<tar.TarException>()));
+      expect(Stream.value(entry).pipe(output), throwsA(isUnsupportedError));
     }
 
     test('when they are too large', () {

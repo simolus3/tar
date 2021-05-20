@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'charcodes.dart';
 import 'constants.dart';
 import 'entry.dart';
-import 'exception.dart';
 import 'format.dart';
 import 'header.dart';
 import 'utils.dart';
@@ -36,6 +35,7 @@ class _WritingTransformer extends StreamTransformerBase<TarEntry, List<int>> {
 ///
 /// When piping the resulting stream into a [StreamConsumer], consider using
 /// [tarWritingSink] directly.
+/// To change the output format of files with long names, use [tarWriterWith].
 const StreamTransformer<TarEntry, List<int>> tarWriter =
     _WritingTransformer(OutputFormat.pax);
 
@@ -112,9 +112,16 @@ enum OutputFormat {
   /// encoding files with a long name.
   ///
   /// When this option is set, `package:tar` will not emit PAX headers which
-  /// may improve compatibility with other tar readers like 7zip. On the other
-  /// hand, some other options like huge files or long user names are not
-  /// supported with this option and might throw an exception.
+  /// may improve compatibility with some legacy systems like old 7zip versions.
+  ///
+  /// Note that this format can't encode large file sizes or long user names.
+  /// Tar entries can't be written if
+  ///  * their [TarHeader.userName] is longer than 31 bytes in utf8,
+  ///  * their [TarHeader.groupName] is longer than 31 bytes in utf8, or,
+  ///  * their [TarEntry.contents] are larger than 8589934591 byte (around
+  ///    8 GiB).
+  ///
+  /// Attempting to encode such file will throw an [UnsupportedError].
   gnuLongName,
 }
 
@@ -300,9 +307,11 @@ class _WritingSink extends StreamSink<TarEntry> {
     const allowedKeys = {paxPath, paxLinkpath};
     final invalidOptions = values.keys.toSet()..removeAll(allowedKeys);
     if (invalidOptions.isNotEmpty) {
-      throw TarException('Invalid entry for OutputFormat.gnu. It uses long '
-          "fields that can't be represented: $invalidOptions. \n"
-          'Try using OutputFormat.pax instead.');
+      throw UnsupportedError(
+        'Unsupporteed entry for OutputFormat.gnu. It uses long fields that '
+        "can't be represented: $invalidOptions. \n"
+        'Try using OutputFormat.pax instead.',
+      );
     }
 
     final name = values[paxPath];
