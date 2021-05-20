@@ -1,4 +1,4 @@
-include: package:extra_pedantic/analysis_options.yaml
+include: package:extra_pedantic/analysis_options.1.3.0.yaml 
 
 analyzer:
   strong-mode:
@@ -15,3 +15,5 @@ linter:
     literal_only_boolean_expressions: false # Nothing wrong with a little while(true)
     parameter_assignments: false
     unnecessary_await_in_return: false
+    no_default_cases: false
+    prefer_asserts_with_message: false # We only use asserts for library-internal invariants

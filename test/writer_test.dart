@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:tar/tar.dart' as tar;
 import 'package:test/test.dart';
 
-import 'package:tar/tar.dart' as tar;
 import 'system_tar.dart';
 
 const oneMbSize = 1024 * 1024;

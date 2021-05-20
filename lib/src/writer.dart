@@ -212,7 +212,6 @@ class _WritingSink extends StreamSink<TarEntry> {
       if (format == OutputFormat.pax) {
         await _writePaxHeader(paxHeader);
       } else {
-        assert(format == OutputFormat.gnuLongName);
         await _writeGnuLongName(paxHeader);
       }
     }
