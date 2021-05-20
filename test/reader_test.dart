@@ -6,9 +6,8 @@ import 'dart:typed_data';
 import 'package:async/async.dart';
 import 'package:tar/src/reader.dart';
 import 'package:tar/src/utils.dart';
-import 'package:test/test.dart';
-
 import 'package:tar/tar.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('POSIX.1-2001', () {
