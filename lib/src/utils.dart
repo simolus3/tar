@@ -92,25 +92,31 @@ extension ByteBufferUtils on Uint8List {
   }
 
   int computeUnsignedHeaderChecksum() {
-    var result = 0;
+    // Accessing the last element first helps the VM eliminate bounds checks in
+    // the loops below.
+    this[blockSize - 1];
+    var result = checksumLength * _checksumPlaceholder;
 
-    for (var i = 0; i < length; i++) {
-      result += (i < checksumOffset || i >= _checksumEnd)
-          ? this[i] // Not in range of where the checksum is written
-          : _checksumPlaceholder;
+    for (var i = 0; i < checksumOffset; i++) {
+      result += this[i];
+    }
+    for (var i = _checksumEnd; i < blockSize; i++) {
+      result += this[i];
     }
 
     return result;
   }
 
   int computeSignedHeaderChecksum() {
-    var result = 0;
+    this[blockSize - 1];
+    // Note that _checksumPlaceholder.toSigned(8) == _checksumPlaceholder
+    var result = checksumLength * _checksumPlaceholder;
 
-    for (var i = 0; i < length; i++) {
-      // Note that _checksumPlaceholder.toSigned(8) == _checksumPlaceholder
-      result += (i < checksumOffset || i >= _checksumEnd)
-          ? this[i].toSigned(8)
-          : _checksumPlaceholder;
+    for (var i = 0; i < checksumOffset; i++) {
+      result += this[i].toSigned(8);
+    }
+    for (var i = _checksumEnd; i < blockSize; i++) {
+      result += this[i].toSigned(8);
     }
 
     return result;
@@ -119,6 +125,14 @@ extension ByteBufferUtils on Uint8List {
   bool matchesHeader(List<int> header, {int offset = magicOffset}) {
     for (var i = 0; i < header.length; i++) {
       if (this[offset + i] != header[i]) return false;
+    }
+
+    return true;
+  }
+
+  bool get isAllZeroes {
+    for (var i = 0; i < length; i++) {
+      if (this[i] != 0) return false;
     }
 
     return true;
@@ -199,14 +213,6 @@ extension ToTyped on List<int> {
     // Flow analysis doesn't work on this.
     final $this = this;
     return $this is Uint8List ? $this : Uint8List.fromList(this);
-  }
-
-  bool get isAllZeroes {
-    for (var i = 0; i < length; i++) {
-      if (this[i] != 0) return false;
-    }
-
-    return true;
   }
 }
 
