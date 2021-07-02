@@ -639,54 +639,47 @@ class TarReader implements StreamIterator<TarEntry> {
       throw TarException.header('Tried to read sparse map of non-GNU header');
     }
 
+    // Read the real size of the file when sparse holes are expanded.
     header.size = rawHeader.readNumeric(483, 12);
-    final sparseMaps = <Uint8List>[];
+    final sparseEntries = <SparseEntry>[];
 
-    var sparse = rawHeader.sublistView(386, 483);
-    sparseMaps.add(sparse);
+    bool readEntry(Uint8List source, int offset) {
+      // If a sparse header starts with a null byte, it marks the end of the
+      // sparse structures.
+      if (rawHeader[offset] == 0) return false;
 
-    while (true) {
-      final maxEntries = sparse.length ~/ 24;
-      if (sparse[24 * maxEntries] > 0) {
-        // If there are more entries, read an extension header and parse its
-        // entries.
-        sparse = await _chunkedStream.readBytes(blockSize);
-        sparseMaps.add(sparse);
-        continue;
+      final fileOffset = source.readNumeric(offset, 12);
+      final length = source.readNumeric(offset + 12, 12);
+
+      sparseEntries.add(SparseEntry(fileOffset, length));
+      return true;
+    }
+
+    // The first four sparse headers are stored in the tar header itself
+    for (var i = 0; i < 4; i++) {
+      final offset = 386 + 24 * i;
+      if (!readEntry(rawHeader, offset)) break;
+    }
+
+    var isExtended = rawHeader[482] != 0;
+
+    while (isExtended) {
+      // Ok, we have a new block of sparse headers to process
+      final block = await _chunkedStream.readBytes(blockSize);
+      if (block.length < blockSize) {
+        throw TarException.header('Unexpected EoF while reading sparse maps');
       }
 
-      break;
-    }
-
-    try {
-      return _processOldGNUSparseMap(sparseMaps);
-    } on FormatException {
-      throw TarException('Invalid old GNU Sparse Map');
-    }
-  }
-
-  /// Process [sparseMaps], which is known to be an OLD GNU v0.1 sparse map.
-  ///
-  /// For details, see https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC191
-  List<SparseEntry> _processOldGNUSparseMap(List<Uint8List> sparseMaps) {
-    final sparseData = <SparseEntry>[];
-
-    for (final sparseMap in sparseMaps) {
-      final maxEntries = sparseMap.length ~/ 24;
-      for (var i = 0; i < maxEntries; i++) {
-        // This termination condition is identical to GNU and BSD tar.
-        if (sparseMap[i * 24] == 0) {
-          // Don't return, need to process extended headers (even if empty)
-          break;
-        }
-
-        final offset = sparseMap.readNumeric(i * 24, 12);
-        final length = sparseMap.readNumeric(i * 24 + 12, 12);
-
-        sparseData.add(SparseEntry(offset, length));
+      // A full block of sparse data contains up to 21 entries
+      for (var i = 0; i < 21; i++) {
+        if (!readEntry(block, i * 24)) break;
       }
+
+      // The last bytes indicates whether another sparse header block follows.
+      isExtended = block[504] != 0;
     }
-    return sparseData;
+
+    return sparseEntries;
   }
 }
 

@@ -1,7 +1,7 @@
 ## 0.4.0
 
 - Support generating tar files with GNU-style long link names
- - Add `format` parameter to `tarWritingSink` and `tarTransformerWith`
+ - Add `format` parameter to `tarWritingSink` and `tarWriterWith`
 
 ## 0.3.3
 
