@@ -50,7 +50,8 @@ void main() {
           contains('-rwxr--r--'),
           contains('my_user'),
           contains('long group that exceeds 32 characters'),
-          contains('12:34'),
+          // The date format is different across GNU and BSD tar
+          anyOf(contains('12:34'), contains('Dec 30')),
         ),
       ),
     );
