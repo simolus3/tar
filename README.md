@@ -54,7 +54,13 @@ make sure to fully drain the stream before calling `read()` again.
 
 ## Writing
 
-You can write tar files into a `StreamSink<List<int>>`, such as an `IOSink`:
+When writing archives, `package:tar` expects a `Stream` of tar entries to include in
+the archive.
+This stream can then be converted into a stream of byte-array chunks forming the
+encoded tar archive.
+
+To write a tar stream into a `StreamSink<List<int>>`, such as an `IOSink` returned by
+`File.openWrite`, use `tarWritingSink`:
 
 ```dart
 import 'dart:convert';
@@ -63,8 +69,7 @@ import 'package:tar/tar.dart';
 
 Future<void> main() async {
   final output = File('test.tar').openWrite();
-
-  await Stream<TarEntry>.value(
+  final tarEntries = Stream<TarEntry>.value(
     TarEntry.data(
       TarHeader(
         name: 'hello.txt',
@@ -72,11 +77,17 @@ Future<void> main() async {
       ),
       utf8.encode('Hello world'),
     ),
-  ).pipe(tarWritingSink(output));
+  );
+
+  await tarEntries.pipe(tarWritingSink(output));
 }
 ```
 
-To write `.tar.gz` files, you can again transform the stream twice:
+For more complex stream transformations, `tarWriter` can be used as a stream
+transformer converting a stream of tar entries into archive bytes.
+
+Together with the `gzip.encoder` transformer from `dart:io`, this can be used
+to write a `.tar.gz` file:
 
 ```dart
 import 'dart:io';
@@ -84,11 +95,13 @@ import 'package:tar/tar.dart';
 
 Future<void> write(Stream<TarEntry> entries) {
   return entries
-      .transform(tarWriter)
-      .transform(gzip.encoder)
+      .transform(tarWriter) // convert entries into a .tar stream
+      .transform(gzip.encoder) // convert the .tar stream into a .tar.gz stream
       .pipe(File('output.tar.gz').openWrite());
 }
 ```
+
+A more complex example for writing files can be found in [`example/archive_self.dart`](example/archive_self.dart).
 
 Note that, by default, tar files are  written in the pax format defined by the
 POSIX.1-2001 specification (`--format=posix` in GNU tar).
@@ -101,13 +114,16 @@ If you prefer writing GNU-style long filenames instead, you can use the
 ```dart
 Future<void> write(Stream<TarEntry> entries) {
   return entries
-      .transform(tarWriterWith(format: OutputFormat.gnuLongName))
-      .pipe(tarWritingSink(
-        File('output.tar.gz').openWrite(),
-        format: OutputFormat.gnuLongName,
+      .pipe(
+        tarWritingSink(
+          File('output.tar').openWrite(),
+          format: OutputFormat.gnuLongName,
       ));
 }
 ```
+
+To change the output format on the `tarWriter` transformer, use
+`tarWriterWith`.
 
 ## Features
 
