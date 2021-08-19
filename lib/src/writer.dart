@@ -210,9 +210,13 @@ class _WritingSink extends StreamSink<TarEntry> {
 
     if (paxHeader.isNotEmpty) {
       if (format == OutputFormat.pax) {
-        await _writePaxHeader(paxHeader);
+        final e = _encodePaxHeader(paxHeader);
+        await _safeAdd(TarEntry.data(e.header, e.data));
       } else {
-        await _writeGnuLongName(paxHeader);
+        final entries = _encodeGnuLongName(paxHeader);
+        for (final e in entries) {
+          await _safeAdd(TarEntry.data(e.header, e.data));
+        }
       }
     }
 
@@ -252,10 +256,10 @@ class _WritingSink extends StreamSink<TarEntry> {
     _output.add(Uint8List(padding));
   }
 
-  /// Writes an extended pax header.
+  /// Encodes an extended pax header.
   ///
   /// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  Future<void> _writePaxHeader(Map<String, List<int>> values) {
+  _HeaderAndData _encodePaxHeader(Map<String, List<int>> values) {
     final buffer = BytesBuilder();
     // format of each entry: "%d %s=%s\n", <length>, <keyword>, <value>
     // note that the length includes the trailing \n and the length description
@@ -287,7 +291,7 @@ class _WritingSink extends StreamSink<TarEntry> {
     });
 
     final paxData = buffer.takeBytes();
-    final file = TarEntry.data(
+    return _HeaderAndData(
       HeaderImpl.internal(
         format: TarFormat.pax,
         modified: millisecondsSinceEpoch(0),
@@ -298,10 +302,10 @@ class _WritingSink extends StreamSink<TarEntry> {
       ),
       paxData,
     );
-    return _safeAdd(file);
   }
 
-  Future<void> _writeGnuLongName(Map<String, List<int>> values) async {
+  Iterable<_HeaderAndData> _encodeGnuLongName(
+      Map<String, List<int>> values) sync* {
     // Ensure that a file that can't be written in the GNU format is not written
     const allowedKeys = {paxPath, paxLinkpath};
     final invalidOptions = values.keys.toSet()..removeAll(allowedKeys);
@@ -316,25 +320,23 @@ class _WritingSink extends StreamSink<TarEntry> {
     final name = values[paxPath];
     final linkName = values[paxLinkpath];
 
-    Future<void> write(List<int> name, TypeFlag flag) {
-      return _safeAdd(
-        TarEntry.data(
-          HeaderImpl.internal(
-            name: '././@LongLink',
-            modified: millisecondsSinceEpoch(0),
-            format: TarFormat.gnu,
-            typeFlag: flag,
-          ),
-          name,
+    _HeaderAndData create(List<int> name, TypeFlag flag) {
+      return _HeaderAndData(
+        HeaderImpl.internal(
+          name: '././@LongLink',
+          modified: millisecondsSinceEpoch(0),
+          format: TarFormat.gnu,
+          typeFlag: flag,
         ),
+        name,
       );
     }
 
     if (name != null) {
-      await write(name, TypeFlag.gnuLongName);
+      yield create(name, TypeFlag.gnuLongName);
     }
     if (linkName != null) {
-      await write(linkName, TypeFlag.gnuLongLink);
+      yield create(linkName, TypeFlag.gnuLongLink);
     }
   }
 
@@ -393,4 +395,11 @@ extension on Uint8List {
       }
     }
   }
+}
+
+class _HeaderAndData {
+  final TarHeader header;
+  final List<int> data;
+
+  _HeaderAndData(this.header, this.data);
 }
