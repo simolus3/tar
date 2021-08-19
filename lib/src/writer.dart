@@ -137,7 +137,7 @@ class _WritingSink extends StreamSink<TarEntry> {
   Future<void> _ready = Future.value();
 
   _WritingSink(this._output, this.format)
-      : _headerEncoder = _TarHeaderEncoder(format);
+      : _headerEncoder = _TarHeaderEncoder(format: format);
 
   @override
   Future<void> get done => _done.future;
@@ -176,7 +176,7 @@ class _WritingSink extends StreamSink<TarEntry> {
       size = bufferedData.length;
     }
 
-    _output.add(_headerEncoder._headerBytes(header, size));
+    _headerEncoder._headerBytes(header, size).forEach(_output.add);
 
     // Write content.
     if (bufferedData != null) {
@@ -222,13 +222,22 @@ Uint8List _paddingBytes(int size) {
 }
 
 class _TarHeaderEncoder {
-  final OutputFormat format;
+  final OutputFormat _format;
   int _paxHeaderCount = 0;
 
-  _TarHeaderEncoder(this.format);
+  _TarHeaderEncoder({
+    OutputFormat format = OutputFormat.pax,
+  }) : _format = format;
 
-  Uint8List _headerBytes(TarHeader header, int size) {
-    final builder = BytesBuilder();
+  Iterable<List<int>> encodeHeaderAndData(
+      TarHeader header, List<int> data) sync* {
+    yield* _headerBytes(header, data.length);
+    yield data;
+    yield _paddingBytes(data.length);
+  }
+
+  Iterable<List<int>> _headerBytes(TarHeader header, int size) sync* {
+    assert(header.size < 0 || header.size == size);
 
     var nameBytes = utf8.encode(header.name);
     var linkBytes = utf8.encode(header.linkName ?? '');
@@ -263,17 +272,11 @@ class _TarHeaderEncoder {
       paxHeader[paxSize] = ascii.encode(size.toString());
     }
 
-    void addHeaderAndData(_HeaderAndData e) {
-      builder.add(_headerBytes(e.header, e.data.length));
-      builder.add(e.data);
-      builder.add(_paddingBytes(e.data.length));
-    }
-
     if (paxHeader.isNotEmpty) {
-      if (format == OutputFormat.pax) {
-        addHeaderAndData(_encodePaxHeader(paxHeader));
+      if (_format == OutputFormat.pax) {
+        yield* _encodePaxHeader(paxHeader);
       } else {
-        _encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
+        yield* _encodeGnuLongName(paxHeader);
       }
     }
 
@@ -299,19 +302,13 @@ class _TarHeaderEncoder {
       checksum += byte;
     }
     headerBlock.setUint(checksum, 148, 8);
-
-    if (builder.isEmpty) {
-      return headerBlock;
-    } else {
-      builder.add(headerBlock);
-      return builder.takeBytes();
-    }
+    yield headerBlock;
   }
 
   /// Encodes an extended pax header.
   ///
   /// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  _HeaderAndData _encodePaxHeader(Map<String, List<int>> values) {
+  Iterable<List<int>> _encodePaxHeader(Map<String, List<int>> values) {
     final buffer = BytesBuilder();
     // format of each entry: "%d %s=%s\n", <length>, <keyword>, <value>
     // note that the length includes the trailing \n and the length description
@@ -343,7 +340,7 @@ class _TarHeaderEncoder {
     });
 
     final paxData = buffer.takeBytes();
-    return _HeaderAndData(
+    return encodeHeaderAndData(
       HeaderImpl.internal(
         format: TarFormat.pax,
         modified: millisecondsSinceEpoch(0),
@@ -356,8 +353,7 @@ class _TarHeaderEncoder {
     );
   }
 
-  Iterable<_HeaderAndData> _encodeGnuLongName(
-      Map<String, List<int>> values) sync* {
+  Iterable<List<int>> _encodeGnuLongName(Map<String, List<int>> values) sync* {
     // Ensure that a file that can't be written in the GNU format is not written
     const allowedKeys = {paxPath, paxLinkpath};
     final invalidOptions = values.keys.toSet()..removeAll(allowedKeys);
@@ -372,8 +368,8 @@ class _TarHeaderEncoder {
     final name = values[paxPath];
     final linkName = values[paxLinkpath];
 
-    _HeaderAndData create(List<int> name, TypeFlag flag) {
-      return _HeaderAndData(
+    Iterable<List<int>> create(List<int> name, TypeFlag flag) {
+      return encodeHeaderAndData(
         HeaderImpl.internal(
           name: '././@LongLink',
           modified: millisecondsSinceEpoch(0),
@@ -385,10 +381,10 @@ class _TarHeaderEncoder {
     }
 
     if (name != null) {
-      yield create(name, TypeFlag.gnuLongName);
+      yield* create(name, TypeFlag.gnuLongName);
     }
     if (linkName != null) {
-      yield create(linkName, TypeFlag.gnuLongLink);
+      yield* create(linkName, TypeFlag.gnuLongLink);
     }
   }
 }
@@ -420,11 +416,4 @@ extension on Uint8List {
       }
     }
   }
-}
-
-class _HeaderAndData {
-  final TarHeader header;
-  final List<int> data;
-
-  _HeaderAndData(this.header, this.data);
 }
