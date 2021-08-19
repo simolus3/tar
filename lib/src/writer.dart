@@ -129,7 +129,7 @@ class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
   final OutputFormat format;
 
-  int _paxHeaderCount = 0;
+  final _headerEncoder = _TarHeaderEncoder();
   bool _closed = false;
   final Completer<Object?> _done = Completer();
 
@@ -208,9 +208,9 @@ class _WritingSink extends StreamSink<TarEntry> {
 
     if (paxHeader.isNotEmpty) {
       if (format == OutputFormat.pax) {
-        addHeaderAndData(_encodePaxHeader(paxHeader));
+        addHeaderAndData(_headerEncoder._encodePaxHeader(paxHeader));
       } else {
-        _encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
+        _headerEncoder._encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
       }
     }
 
@@ -272,6 +272,37 @@ class _WritingSink extends StreamSink<TarEntry> {
     final padding = -size % blockSize;
     return Uint8List(padding);
   }
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {
+    _output.addError(error, stackTrace);
+  }
+
+  @override
+  Future<void> addStream(Stream<TarEntry> stream) async {
+    await for (final entry in stream) {
+      await add(entry);
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    if (!_closed) {
+      _closed = true;
+
+      // Add two empty blocks at the end.
+      await _doWork(() {
+        _output.add(zeroBlock);
+        _output.add(zeroBlock);
+      });
+    }
+
+    return done;
+  }
+}
+
+class _TarHeaderEncoder {
+  int _paxHeaderCount = 0;
 
   /// Encodes an extended pax header.
   ///
@@ -355,33 +386,6 @@ class _WritingSink extends StreamSink<TarEntry> {
     if (linkName != null) {
       yield create(linkName, TypeFlag.gnuLongLink);
     }
-  }
-
-  @override
-  void addError(Object error, [StackTrace? stackTrace]) {
-    _output.addError(error, stackTrace);
-  }
-
-  @override
-  Future<void> addStream(Stream<TarEntry> stream) async {
-    await for (final entry in stream) {
-      await add(entry);
-    }
-  }
-
-  @override
-  Future<void> close() async {
-    if (!_closed) {
-      _closed = true;
-
-      // Add two empty blocks at the end.
-      await _doWork(() {
-        _output.add(zeroBlock);
-        _output.add(zeroBlock);
-      });
-    }
-
-    return done;
   }
 }
 
