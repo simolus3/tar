@@ -127,17 +127,16 @@ enum OutputFormat {
 
 class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
-  final OutputFormat format;
 
-  final _TarHeaderEncoder _headerEncoder;
+  final TarEntryEncoder _encoder;
   bool _closed = false;
   final Completer<Object?> _done = Completer();
 
   int _pendingOperations = 0;
   Future<void> _ready = Future.value();
 
-  _WritingSink(this._output, this.format)
-      : _headerEncoder = _TarHeaderEncoder(format: format);
+  _WritingSink(this._output, OutputFormat format)
+      : _encoder = TarEntryEncoder(format: format);
 
   @override
   Future<void> get done => _done.future;
@@ -176,7 +175,7 @@ class _WritingSink extends StreamSink<TarEntry> {
       size = bufferedData.length;
     }
 
-    _headerEncoder._headerBytes(header, size).forEach(_output.add);
+    _encoder._headerBytes(header, size).forEach(_output.add);
 
     // Write content.
     if (bufferedData != null) {
@@ -221,19 +220,33 @@ Uint8List _paddingBytes(int size) {
   return Uint8List(padding);
 }
 
-class _TarHeaderEncoder {
+/// Encodes tar entries for a single .tar file (keeping track of the index
+/// for the extra pax headers required).
+class TarEntryEncoder extends Converter<TarEntry, List<int>> {
   final OutputFormat _format;
   int _paxHeaderCount = 0;
 
-  _TarHeaderEncoder({
-    OutputFormat format = OutputFormat.pax,
-  }) : _format = format;
+  /// When [format] is not specified [OutputFormat.pax] is used.
+  TarEntryEncoder({
+    OutputFormat? format,
+  }) : _format = format ?? OutputFormat.pax;
 
-  Iterable<List<int>> encodeHeaderAndData(
-      TarHeader header, List<int> data) sync* {
-    yield* _headerBytes(header, data.length);
-    yield data;
-    yield _paddingBytes(data.length);
+  /// Return the accumulated bytes that encode the [entry].
+  @override
+  Uint8List convert(TarEntry entry) {
+    final builder = BytesBuilder();
+    convertChunked(entry).forEach(builder.add);
+    return builder.takeBytes();
+  }
+
+  /// Returns the chunk of bytes that encode the [entry].
+  Iterable<List<int>> convertChunked(TarEntry entry) sync* {
+    if (entry is! TarEntry$WithData) {
+      throw ArgumentError('`entry` must be created with `TarEntry.data()`.');
+    }
+    yield* _headerBytes(entry.header, entry.data.length);
+    yield entry.data;
+    yield _paddingBytes(entry.data.length);
   }
 
   Iterable<List<int>> _headerBytes(TarHeader header, int size) sync* {
@@ -340,16 +353,18 @@ class _TarHeaderEncoder {
     });
 
     final paxData = buffer.takeBytes();
-    return encodeHeaderAndData(
-      HeaderImpl.internal(
-        format: TarFormat.pax,
-        modified: millisecondsSinceEpoch(0),
-        name: 'PaxHeader/${_paxHeaderCount++}',
-        mode: 0,
-        size: paxData.length,
-        typeFlag: TypeFlag.xHeader,
+    return convertChunked(
+      TarEntry.data(
+        HeaderImpl.internal(
+          format: TarFormat.pax,
+          modified: millisecondsSinceEpoch(0),
+          name: 'PaxHeader/${_paxHeaderCount++}',
+          mode: 0,
+          size: paxData.length,
+          typeFlag: TypeFlag.xHeader,
+        ),
+        paxData,
       ),
-      paxData,
     );
   }
 
@@ -369,14 +384,16 @@ class _TarHeaderEncoder {
     final linkName = values[paxLinkpath];
 
     Iterable<List<int>> create(List<int> name, TypeFlag flag) {
-      return encodeHeaderAndData(
-        HeaderImpl.internal(
-          name: '././@LongLink',
-          modified: millisecondsSinceEpoch(0),
-          format: TarFormat.gnu,
-          typeFlag: flag,
+      return convertChunked(
+        TarEntry.data(
+          HeaderImpl.internal(
+            name: '././@LongLink',
+            modified: millisecondsSinceEpoch(0),
+            format: TarFormat.gnu,
+            typeFlag: flag,
+          ),
+          name,
         ),
-        name,
       );
     }
 
