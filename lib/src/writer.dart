@@ -129,14 +129,15 @@ class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
   final OutputFormat format;
 
-  final _headerEncoder = _TarHeaderEncoder();
+  final _TarHeaderEncoder _headerEncoder;
   bool _closed = false;
   final Completer<Object?> _done = Completer();
 
   int _pendingOperations = 0;
   Future<void> _ready = Future.value();
 
-  _WritingSink(this._output, this.format);
+  _WritingSink(this._output, this.format)
+      : _headerEncoder = _TarHeaderEncoder(format);
 
   @override
   Future<void> get done => _done.future;
@@ -163,6 +164,68 @@ class _WritingSink extends StreamSink<TarEntry> {
       }
     });
   }
+
+  Future<void> _safeAdd(TarEntry event) async {
+    final header = event.header;
+    var size = header.size;
+    Uint8List? bufferedData;
+    if (size < 0) {
+      final builder = BytesBuilder();
+      await event.contents.forEach(builder.add);
+      bufferedData = builder.takeBytes();
+      size = bufferedData.length;
+    }
+
+    _output.add(_headerEncoder._headerBytes(header, size));
+
+    // Write content.
+    if (bufferedData != null) {
+      _output.add(bufferedData);
+    } else {
+      await event.contents.forEach(_output.add);
+    }
+
+    _output.add(_paddingBytes(size));
+  }
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {
+    _output.addError(error, stackTrace);
+  }
+
+  @override
+  Future<void> addStream(Stream<TarEntry> stream) async {
+    await for (final entry in stream) {
+      await add(entry);
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    if (!_closed) {
+      _closed = true;
+
+      // Add two empty blocks at the end.
+      await _doWork(() {
+        _output.add(zeroBlock);
+        _output.add(zeroBlock);
+      });
+    }
+
+    return done;
+  }
+}
+
+Uint8List _paddingBytes(int size) {
+  final padding = -size % blockSize;
+  return Uint8List(padding);
+}
+
+class _TarHeaderEncoder {
+  final OutputFormat format;
+  int _paxHeaderCount = 0;
+
+  _TarHeaderEncoder(this.format);
 
   Uint8List _headerBytes(TarHeader header, int size) {
     final builder = BytesBuilder();
@@ -208,9 +271,9 @@ class _WritingSink extends StreamSink<TarEntry> {
 
     if (paxHeader.isNotEmpty) {
       if (format == OutputFormat.pax) {
-        addHeaderAndData(_headerEncoder._encodePaxHeader(paxHeader));
+        addHeaderAndData(_encodePaxHeader(paxHeader));
       } else {
-        _headerEncoder._encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
+        _encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
       }
     }
 
@@ -244,65 +307,6 @@ class _WritingSink extends StreamSink<TarEntry> {
       return builder.takeBytes();
     }
   }
-
-  Future<void> _safeAdd(TarEntry event) async {
-    final header = event.header;
-    var size = header.size;
-    Uint8List? bufferedData;
-    if (size < 0) {
-      final builder = BytesBuilder();
-      await event.contents.forEach(builder.add);
-      bufferedData = builder.takeBytes();
-      size = bufferedData.length;
-    }
-
-    _output.add(_headerBytes(header, size));
-
-    // Write content.
-    if (bufferedData != null) {
-      _output.add(bufferedData);
-    } else {
-      await event.contents.forEach(_output.add);
-    }
-
-    _output.add(_paddingBytes(size));
-  }
-
-  Uint8List _paddingBytes(int size) {
-    final padding = -size % blockSize;
-    return Uint8List(padding);
-  }
-
-  @override
-  void addError(Object error, [StackTrace? stackTrace]) {
-    _output.addError(error, stackTrace);
-  }
-
-  @override
-  Future<void> addStream(Stream<TarEntry> stream) async {
-    await for (final entry in stream) {
-      await add(entry);
-    }
-  }
-
-  @override
-  Future<void> close() async {
-    if (!_closed) {
-      _closed = true;
-
-      // Add two empty blocks at the end.
-      await _doWork(() {
-        _output.add(zeroBlock);
-        _output.add(zeroBlock);
-      });
-    }
-
-    return done;
-  }
-}
-
-class _TarHeaderEncoder {
-  int _paxHeaderCount = 0;
 
   /// Encodes an extended pax header.
   ///
