@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Support sync encoding with `TarEntryEncoder`.
+
 ## 0.4.0
 
 - Support generating tar files with GNU-style long link names
