@@ -206,8 +206,7 @@ class _WritingSink extends StreamSink<TarEntry> {
 
       // Add two empty blocks at the end.
       await _doWork(() {
-        _output.add(zeroBlock);
-        _output.add(zeroBlock);
+        _encoder.endOfArchive().forEach(_output.add);
       });
     }
 
@@ -220,10 +219,11 @@ Uint8List _paddingBytes(int size) {
   return Uint8List(padding);
 }
 
-/// Encodes tar entries for a single .tar file (keeping track of the index
+/// Encodes tar entries for a single .tar archive (keeping track of the index
 /// for the extra pax headers required).
 class TarEntryEncoder extends Converter<TarEntry, List<int>> {
   final OutputFormat _format;
+  bool _closed = false;
   int _paxHeaderCount = 0;
 
   /// When [format] is not specified [OutputFormat.pax] is used.
@@ -244,9 +244,27 @@ class TarEntryEncoder extends Converter<TarEntry, List<int>> {
     if (entry is! TarEntry$WithData) {
       throw ArgumentError('`entry` must be created with `TarEntry.data()`.');
     }
+    _throwIfClosed();
     yield* _headerBytes(entry.header, entry.data.length);
     yield entry.data;
     yield _paddingBytes(entry.data.length);
+  }
+
+  /// Returns the bytes that mark the end of the tar archive.
+  ///
+  /// After this method has been called, the [TarEntryEncoder] is closed,
+  /// and must not be used for further conversions.
+  Iterable<Uint8List> endOfArchive() {
+    _throwIfClosed();
+    _closed = true;
+    return <Uint8List>[zeroBlock, zeroBlock];
+  }
+
+  void _throwIfClosed() {
+    if (_closed) {
+      throw StateError('Encoder is closed. '
+          'After calling `endOfArchive()`, encoder must not be used.');
+    }
   }
 
   Iterable<List<int>> _headerBytes(TarHeader header, int size) sync* {
