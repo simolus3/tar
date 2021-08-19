@@ -164,16 +164,8 @@ class _WritingSink extends StreamSink<TarEntry> {
     });
   }
 
-  Future<void> _safeAdd(TarEntry event) async {
-    final header = event.header;
-    var size = header.size;
-    Uint8List? bufferedData;
-    if (size < 0) {
-      final builder = BytesBuilder();
-      await event.contents.forEach(builder.add);
-      bufferedData = builder.takeBytes();
-      size = bufferedData.length;
-    }
+  Uint8List _headerBytes(TarHeader header, int size) {
+    final builder = BytesBuilder();
 
     var nameBytes = utf8.encode(header.name);
     var linkBytes = utf8.encode(header.linkName ?? '');
@@ -208,15 +200,17 @@ class _WritingSink extends StreamSink<TarEntry> {
       paxHeader[paxSize] = ascii.encode(size.toString());
     }
 
+    void addHeaderAndData(_HeaderAndData e) {
+      builder.add(_headerBytes(e.header, e.data.length));
+      builder.add(e.data);
+      builder.add(_paddingBytes(e.data.length));
+    }
+
     if (paxHeader.isNotEmpty) {
       if (format == OutputFormat.pax) {
-        final e = _encodePaxHeader(paxHeader);
-        await _safeAdd(TarEntry.data(e.header, e.data));
+        addHeaderAndData(_encodePaxHeader(paxHeader));
       } else {
-        final entries = _encodeGnuLongName(paxHeader);
-        for (final e in entries) {
-          await _safeAdd(TarEntry.data(e.header, e.data));
-        }
+        _encodeGnuLongName(paxHeader).forEach(addHeaderAndData);
       }
     }
 
@@ -243,7 +237,26 @@ class _WritingSink extends StreamSink<TarEntry> {
     }
     headerBlock.setUint(checksum, 148, 8);
 
-    _output.add(headerBlock);
+    if (builder.isEmpty) {
+      return headerBlock;
+    } else {
+      builder.add(headerBlock);
+      return builder.takeBytes();
+    }
+  }
+
+  Future<void> _safeAdd(TarEntry event) async {
+    final header = event.header;
+    var size = header.size;
+    Uint8List? bufferedData;
+    if (size < 0) {
+      final builder = BytesBuilder();
+      await event.contents.forEach(builder.add);
+      bufferedData = builder.takeBytes();
+      size = bufferedData.length;
+    }
+
+    _output.add(_headerBytes(header, size));
 
     // Write content.
     if (bufferedData != null) {
@@ -252,8 +265,12 @@ class _WritingSink extends StreamSink<TarEntry> {
       await event.contents.forEach(_output.add);
     }
 
+    _output.add(_paddingBytes(size));
+  }
+
+  Uint8List _paddingBytes(int size) {
     final padding = -size % blockSize;
-    _output.add(Uint8List(padding));
+    return Uint8List(padding);
   }
 
   /// Encodes an extended pax header.
