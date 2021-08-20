@@ -127,8 +127,7 @@ enum OutputFormat {
 
 class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
-
-  final TarEntryEncoder _encoder;
+  final TarEncoderSession _encoderSession;
   bool _closed = false;
   final Completer<Object?> _done = Completer();
 
@@ -136,7 +135,7 @@ class _WritingSink extends StreamSink<TarEntry> {
   Future<void> _ready = Future.value();
 
   _WritingSink(this._output, OutputFormat format)
-      : _encoder = TarEntryEncoder(format: format);
+      : _encoderSession = TarEncoderSession(format: format);
 
   @override
   Future<void> get done => _done.future;
@@ -175,7 +174,7 @@ class _WritingSink extends StreamSink<TarEntry> {
       size = bufferedData.length;
     }
 
-    _encoder._headerBytes(header, size).forEach(_output.add);
+    _encoderSession._headerBytes(header, size).forEach(_output.add);
 
     // Write content.
     if (bufferedData != null) {
@@ -206,7 +205,7 @@ class _WritingSink extends StreamSink<TarEntry> {
 
       // Add two empty blocks at the end.
       await _doWork(() {
-        _encoder.endOfArchive().forEach(_output.add);
+        _encoderSession.endOfArchive().forEach(_output.add);
       });
     }
 
@@ -221,38 +220,27 @@ Uint8List _paddingBytes(int size) {
 
 /// Encodes tar entries for a single .tar archive (keeping track of the index
 /// for the extra pax headers required).
-class TarEntryEncoder extends Converter<TarEntry, List<int>> {
+class TarEncoderSession {
   final OutputFormat _format;
   bool _closed = false;
   int _paxHeaderCount = 0;
 
   /// When [format] is not specified [OutputFormat.pax] is used.
-  TarEntryEncoder({
+  TarEncoderSession({
     OutputFormat? format,
   }) : _format = format ?? OutputFormat.pax;
 
-  /// Return the accumulated bytes that encode the [entry].
-  @override
-  Uint8List convert(TarEntry entry) {
-    final builder = BytesBuilder();
-    convertChunked(entry).forEach(builder.add);
-    return builder.takeBytes();
-  }
-
-  /// Returns the chunk of bytes that encode the [entry].
-  Iterable<List<int>> convertChunked(TarEntry entry) sync* {
-    if (entry is! TarEntry$WithData) {
-      throw ArgumentError('`entry` must be created with `TarEntry.data()`.');
-    }
+  /// Returns the chunk of bytes that encode the [header] and [data].
+  Iterable<List<int>> convertChunked(TarHeader header, List<int> data) sync* {
     _throwIfClosed();
-    yield* _headerBytes(entry.header, entry.data.length);
-    yield entry.data;
-    yield _paddingBytes(entry.data.length);
+    yield* _headerBytes(header, data.length);
+    yield data;
+    yield _paddingBytes(data.length);
   }
 
   /// Returns the bytes that mark the end of the tar archive.
   ///
-  /// After this method has been called, the [TarEntryEncoder] is closed,
+  /// After this method has been called, the [TarEncoderSession] is closed,
   /// and must not be used for further conversions.
   Iterable<Uint8List> endOfArchive() {
     _throwIfClosed();
@@ -372,17 +360,15 @@ class TarEntryEncoder extends Converter<TarEntry, List<int>> {
 
     final paxData = buffer.takeBytes();
     return convertChunked(
-      TarEntry.data(
-        HeaderImpl.internal(
-          format: TarFormat.pax,
-          modified: millisecondsSinceEpoch(0),
-          name: 'PaxHeader/${_paxHeaderCount++}',
-          mode: 0,
-          size: paxData.length,
-          typeFlag: TypeFlag.xHeader,
-        ),
-        paxData,
+      HeaderImpl.internal(
+        format: TarFormat.pax,
+        modified: millisecondsSinceEpoch(0),
+        name: 'PaxHeader/${_paxHeaderCount++}',
+        mode: 0,
+        size: paxData.length,
+        typeFlag: TypeFlag.xHeader,
       ),
+      paxData,
     );
   }
 
@@ -403,15 +389,13 @@ class TarEntryEncoder extends Converter<TarEntry, List<int>> {
 
     Iterable<List<int>> create(List<int> name, TypeFlag flag) {
       return convertChunked(
-        TarEntry.data(
-          HeaderImpl.internal(
-            name: '././@LongLink',
-            modified: millisecondsSinceEpoch(0),
-            format: TarFormat.gnu,
-            typeFlag: flag,
-          ),
-          name,
+        HeaderImpl.internal(
+          name: '././@LongLink',
+          modified: millisecondsSinceEpoch(0),
+          format: TarFormat.gnu,
+          typeFlag: flag,
         ),
+        name,
       );
     }
 

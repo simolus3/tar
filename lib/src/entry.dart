@@ -54,13 +54,6 @@ class TarEntry {
   /// Creates an in-memory tar entry from the [header] and the [data] to store.
   factory TarEntry.data(TarHeader header, List<int> data) {
     (header as HeaderImpl).size = data.length;
-    return TarEntry$WithData._(header, Stream.value(data), data);
+    return TarEntry._(header, Stream.value(data));
   }
-}
-
-/// A tar entry that is known to contain the data in memory.
-class TarEntry$WithData extends TarEntry {
-  final List<int> data;
-  TarEntry$WithData._(TarHeader header, Stream<List<int>> contents, this.data)
-      : super._(header, contents);
 }
