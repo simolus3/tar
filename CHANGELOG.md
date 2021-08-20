@@ -1,3 +1,7 @@
+## 0.5.0
+
+- Support sync encoding with `tarConverter`.
+
 ## 0.4.0
 
 - Support generating tar files with GNU-style long link names

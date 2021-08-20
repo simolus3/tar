@@ -103,7 +103,9 @@ Future<void> write(Stream<TarEntry> entries) {
 
 A more complex example for writing files can be found in [`example/archive_self.dart`](example/archive_self.dart).
 
-Note that, by default, tar files are  written in the pax format defined by the
+### Encoding options
+
+By default, tar files are  written in the pax format defined by the
 POSIX.1-2001 specification (`--format=posix` in GNU tar).
 When all entries have file names shorter than 100 chars and a size smaller 
 than 8 GB, this is equivalent to the `ustar` format. This library won't write
@@ -124,6 +126,27 @@ Future<void> write(Stream<TarEntry> entries) {
 
 To change the output format on the `tarWriter` transformer, use
 `tarWriterWith`.
+
+### Synchronous writing
+
+As the content of tar entries is defined as an asynchronous stream, the tar encoder is asynchronous too.
+The more specific `SynchronousTarEntry` class stores tar content as a list of bytes, meaning that it can be
+written synchronously too.
+
+To synchronously write tar files, use `tarConverter` (or `tarConverterWith` for options):
+
+```dart
+List<int> createTarArchive(Iterable<SynchronousTarEntry> entries) {
+  late List<int> result;
+  final sink = ByteConversionSink.withCallback((data) => result = data);
+
+  final output = tarConverter.startChunkedConversion(sink);
+  entries.forEach(output.add);
+  output.close();
+
+  return result;
+}
+```
 
 ## Features
 
