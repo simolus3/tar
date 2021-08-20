@@ -13,7 +13,7 @@ void main() {
     final file = File(Directory.systemTemp.path + '\\tar_test.tar');
     addTearDown(file.delete);
 
-    await Stream.value(entry)
+    await Stream<TarEntry>.value(entry)
         .transform(tarWriterWith(format: OutputFormat.gnuLongName))
         .pipe(file.openWrite());
 

@@ -1,6 +1,6 @@
-## 0.4.1
+## 0.5.0
 
-- Support sync encoding with `TarEntryEncoder`.
+- Support sync encoding with `tarConverter`.
 
 ## 0.4.0
 

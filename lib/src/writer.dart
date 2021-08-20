@@ -99,6 +99,33 @@ StreamSink<TarEntry> tarWritingSink(StreamSink<List<int>> output,
   return _WritingSink(output, format);
 }
 
+/// A synchronous encoder for in-memory tar files.
+///
+/// The default [tarWriter] creates an asynchronous conversion from a stream of
+/// tar entries to a byte stream.
+/// When all tar entries are in-memory ([SynchronousTarEntry]), it is possible
+/// to write them synchronously too.
+///
+/// To create a tar archive consisting of a single entry, use
+/// [Converter.convert] on this [tarConverter].
+/// To create a tar archive consisting of any number of entries, first call
+/// [Converter.startChunkedConversion] with a suitable output sink. Next, call
+/// [Sink.add] for each tar entry and finish the archive by calling
+/// [Sink.close].
+///
+/// To change the output format of the tar converter, use [tarConverterWith].
+/// To encode any kind of tar entries, use the asynchronous [tarWriter].
+const Converter<SynchronousTarEntry, List<int>> tarConverter =
+    _SynchronousTarConverter(OutputFormat.pax);
+
+/// A synchronous encoder for in-memory tar files, with custom encoding options.
+///
+/// For more information on how to use the converter, see [tarConverter].
+Converter<SynchronousTarEntry, List<int>> tarConverterWith(
+    {OutputFormat format = OutputFormat.pax}) {
+  return _SynchronousTarConverter(format);
+}
+
 /// This option controls how long file and link names should be written.
 ///
 /// This option can be passed to writer in [tarWritingSink] or[tarWriterWith].
@@ -127,7 +154,7 @@ enum OutputFormat {
 
 class _WritingSink extends StreamSink<TarEntry> {
   final StreamSink<List<int>> _output;
-  final TarEncoderSession _encoderSession;
+  final _SynchronousTarSink _synchronousWriter;
   bool _closed = false;
   final Completer<Object?> _done = Completer();
 
@@ -135,7 +162,7 @@ class _WritingSink extends StreamSink<TarEntry> {
   Future<void> _ready = Future.value();
 
   _WritingSink(this._output, OutputFormat format)
-      : _encoderSession = TarEncoderSession(format: format);
+      : _synchronousWriter = _SynchronousTarSink(_output, format);
 
   @override
   Future<void> get done => _done.future;
@@ -174,7 +201,7 @@ class _WritingSink extends StreamSink<TarEntry> {
       size = bufferedData.length;
     }
 
-    _encoderSession._headerBytes(header, size).forEach(_output.add);
+    _synchronousWriter._writeHeader(header, size);
 
     // Write content.
     if (bufferedData != null) {
@@ -204,9 +231,7 @@ class _WritingSink extends StreamSink<TarEntry> {
       _closed = true;
 
       // Add two empty blocks at the end.
-      await _doWork(() {
-        _encoderSession.endOfArchive().forEach(_output.add);
-      });
+      await _doWork(_synchronousWriter.close);
     }
 
     return done;
@@ -218,34 +243,60 @@ Uint8List _paddingBytes(int size) {
   return Uint8List(padding);
 }
 
-/// Encodes tar entries for a single .tar archive (keeping track of the index
-/// for the extra pax headers required).
-class TarEncoderSession {
+class _SynchronousTarConverter
+    extends Converter<SynchronousTarEntry, List<int>> {
+  final OutputFormat format;
+
+  const _SynchronousTarConverter(this.format);
+
+  @override
+  Sink<SynchronousTarEntry> startChunkedConversion(Sink<List<int>> sink) {
+    return _SynchronousTarSink(sink, format);
+  }
+
+  @override
+  List<int> convert(SynchronousTarEntry input) {
+    final output = BytesBuilder(copy: false);
+    startChunkedConversion(ByteConversionSink.withCallback(output.add))
+      ..add(input)
+      ..close();
+
+    return output.takeBytes();
+  }
+}
+
+class _SynchronousTarSink extends Sink<SynchronousTarEntry> {
   final OutputFormat _format;
+  final Sink<List<int>> _output;
+
   bool _closed = false;
   int _paxHeaderCount = 0;
 
-  /// When [format] is not specified [OutputFormat.pax] is used.
-  TarEncoderSession({
-    OutputFormat? format,
-  }) : _format = format ?? OutputFormat.pax;
+  _SynchronousTarSink(this._output, this._format);
 
-  /// Returns the chunk of bytes that encode the [header] and [data].
-  Iterable<List<int>> convertChunked(TarHeader header, List<int> data) sync* {
-    _throwIfClosed();
-    yield* _headerBytes(header, data.length);
-    yield data;
-    yield _paddingBytes(data.length);
+  @override
+  void add(SynchronousTarEntry data) {
+    addHeaderAndData(data.header, data.data);
   }
 
-  /// Returns the bytes that mark the end of the tar archive.
-  ///
-  /// After this method has been called, the [TarEncoderSession] is closed,
-  /// and must not be used for further conversions.
-  Iterable<Uint8List> endOfArchive() {
+  void addHeaderAndData(TarHeader header, List<int> data) {
     _throwIfClosed();
+
+    _writeHeader(header, data.length);
+    _output..add(data)..add(_paddingBytes(data.length));
+  }
+
+  @override
+  void close() {
+    if (_closed) return;
+
+    // End the tar archive by writing two zero blocks.
+    _output
+      ..add(UnmodifiableUint8ListView(zeroBlock))
+      ..add(UnmodifiableUint8ListView(zeroBlock));
+    _output.close();
+
     _closed = true;
-    return <Uint8List>[zeroBlock, zeroBlock];
   }
 
   void _throwIfClosed() {
@@ -255,7 +306,7 @@ class TarEncoderSession {
     }
   }
 
-  Iterable<List<int>> _headerBytes(TarHeader header, int size) sync* {
+  void _writeHeader(TarHeader header, int size) {
     assert(header.size < 0 || header.size == size);
 
     var nameBytes = utf8.encode(header.name);
@@ -293,9 +344,9 @@ class TarEncoderSession {
 
     if (paxHeader.isNotEmpty) {
       if (_format == OutputFormat.pax) {
-        yield* _encodePaxHeader(paxHeader);
+        _writePaxHeader(paxHeader);
       } else {
-        yield* _encodeGnuLongName(paxHeader);
+        _writeGnuLongName(paxHeader);
       }
     }
 
@@ -321,13 +372,13 @@ class TarEncoderSession {
       checksum += byte;
     }
     headerBlock.setUint(checksum, 148, 8);
-    yield headerBlock;
+    _output.add(headerBlock);
   }
 
   /// Encodes an extended pax header.
   ///
   /// https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
-  Iterable<List<int>> _encodePaxHeader(Map<String, List<int>> values) {
+  void _writePaxHeader(Map<String, List<int>> values) {
     final buffer = BytesBuilder();
     // format of each entry: "%d %s=%s\n", <length>, <keyword>, <value>
     // note that the length includes the trailing \n and the length description
@@ -359,7 +410,7 @@ class TarEncoderSession {
     });
 
     final paxData = buffer.takeBytes();
-    return convertChunked(
+    addHeaderAndData(
       HeaderImpl.internal(
         format: TarFormat.pax,
         modified: millisecondsSinceEpoch(0),
@@ -372,7 +423,7 @@ class TarEncoderSession {
     );
   }
 
-  Iterable<List<int>> _encodeGnuLongName(Map<String, List<int>> values) sync* {
+  void _writeGnuLongName(Map<String, List<int>> values) {
     // Ensure that a file that can't be written in the GNU format is not written
     const allowedKeys = {paxPath, paxLinkpath};
     final invalidOptions = values.keys.toSet()..removeAll(allowedKeys);
@@ -387,8 +438,8 @@ class TarEncoderSession {
     final name = values[paxPath];
     final linkName = values[paxLinkpath];
 
-    Iterable<List<int>> create(List<int> name, TypeFlag flag) {
-      return convertChunked(
+    void create(List<int> name, TypeFlag flag) {
+      return addHeaderAndData(
         HeaderImpl.internal(
           name: '././@LongLink',
           modified: millisecondsSinceEpoch(0),
@@ -400,10 +451,10 @@ class TarEncoderSession {
     }
 
     if (name != null) {
-      yield* create(name, TypeFlag.gnuLongName);
+      create(name, TypeFlag.gnuLongName);
     }
     if (linkName != null) {
-      yield* create(linkName, TypeFlag.gnuLongLink);
+      create(linkName, TypeFlag.gnuLongLink);
     }
   }
 }

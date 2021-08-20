@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:tar/tar.dart' as tar;
@@ -55,6 +56,69 @@ void main() {
         ),
       ),
     );
+  }, testOn: '!windows');
+
+  test('writes entries synchronously', () async {
+    final date = DateTime.parse('2020-12-30 12:34');
+    final builder = BytesBuilder(copy: false);
+    final sink = tar.tarConverter
+        .startChunkedConversion(ByteConversionSink.withCallback(builder.add));
+
+    sink.add(tar.TarEntry.data(
+      tar.TarHeader(
+        name: 'first.txt',
+        mode: int.parse('644', radix: 8),
+        size: 0,
+        userId: 3,
+        groupId: 4,
+        userName: 'my_user',
+        modified: date,
+      ),
+      Uint8List(10),
+    ));
+    sink.add(tar.TarEntry.data(
+      tar.TarHeader(
+        name: 'second.txt',
+        mode: int.parse('644', radix: 8),
+        size: 0,
+        userId: 3,
+        groupId: 4,
+        userName: 'my_user',
+        modified: date,
+      ),
+      Uint8List(512),
+    ));
+
+    sink.close();
+
+    final process = await startTar(['--list', '--verbose']);
+    process.stdin.add(builder.takeBytes());
+
+    expect(
+      process.lines,
+      emitsInOrder(
+        <Matcher>[
+          allOf(
+            contains('-rw-r--r--'),
+            contains('my_user'),
+            contains('10'),
+            // The date format is different across GNU and BSD tar
+            anyOf(contains('12:34'), contains('Dec 30')),
+            contains('first.txt'),
+          ),
+          allOf(
+            contains('-rw-r--r--'),
+            contains('my_user'),
+            contains('512'),
+            // The date format is different across GNU and BSD tar
+            anyOf(contains('12:34'), contains('Dec 30')),
+            contains('second.txt'),
+          ),
+        ],
+      ),
+    );
+
+    await process.stdin.close();
   }, testOn: '!windows');
 
   test('writes huge files', () async {
