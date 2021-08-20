@@ -136,15 +136,15 @@ written synchronously too.
 To synchronously write tar files, use `tarConverter` (or `tarConverterWith` for options):
 
 ```dart
-Uint8List createTarArchive(Iterable<SynchronousTarEntry> entries) {
-  final result = BytesBuilder(copy: false);
-  final sink = ByteConversionSink.withCallback(result.add);
+List<int> createTarArchive(Iterable<SynchronousTarEntry> entries) {
+  late List<int> result;
+  final sink = ByteConversionSink.withCallback((data) => result = data);
 
   final output = tarConverter.startChunkedConversion(sink);
   entries.forEach(output.add);
   output.close();
 
-  return result.takeBytes();
+  return result;
 }
 ```
 
