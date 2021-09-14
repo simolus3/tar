@@ -22,13 +22,9 @@ import 'utils.dart';
 /// to read each archive where possible.
 @sealed
 class TarReader implements StreamIterator<TarEntry> {
-  /// A chunked stream iterator to enable us to get our data.
-  final ChunkedStreamReader<int> _chunkedStream;
+  final BlockReader _reader;
   final PaxHeaders _paxHeaders = PaxHeaders();
   final int _maxSpecialFileSize;
-
-  /// Skip the next [_skipNext] elements when reading in the stream.
-  int _skipNext = 0;
 
   TarEntry? _current;
 
@@ -88,7 +84,7 @@ class TarReader implements StreamIterator<TarEntry> {
   TarReader(Stream<List<int>> tarStream,
       {int maxSpecialFileSize = defaultSpecialLength,
       bool disallowTrailingData = false})
-      : _chunkedStream = ChunkedStreamReader(tarStream),
+      : _reader = BlockReader(tarStream),
         _checkNoTrailingData = disallowTrailingData,
         _maxSpecialFileSize = maxSpecialFileSize;
 
@@ -152,13 +148,7 @@ class TarReader implements StreamIterator<TarEntry> {
     // iterates through one or more "header files" until it finds a
     // "normal file".
     while (true) {
-      if (_skipNext > 0) {
-        await _readFullBlock(_skipNext);
-        _skipNext = 0;
-      }
-
-      final rawHeader =
-          await _readFullBlock(blockSize, allowEmpty: eofAcceptable);
+      final rawHeader = await _readFullBlock(allowEmpty: eofAcceptable);
 
       nextHeader = await _readHeader(rawHeader);
       if (nextHeader == null) {
@@ -180,19 +170,21 @@ class TarReader implements StreamIterator<TarEntry> {
           nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
         format = format.mayOnlyBe(TarFormat.pax);
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
-        final rawPaxHeaders = await _readFullBlock(paxHeaderSize);
+
+        final rawPaxHeaders =
+            (await _readFullBlock(amount: numBlocks(paxHeaderSize)))
+                .sublistView(0, paxHeaderSize);
 
         _paxHeaders.readPaxHeaders(
             rawPaxHeaders, nextHeader.typeFlag == TypeFlag.xGlobalHeader);
-        _markPaddingToSkip(paxHeaderSize);
 
         // This is a meta header affecting the next header.
         continue;
       } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
           nextHeader.typeFlag == TypeFlag.gnuLongName) {
         format = format.mayOnlyBe(TarFormat.gnu);
-        final realName = await _readFullBlock(
-            _checkSpecialSize(nextBlockSize(nextHeader.size)));
+        final size = _checkSpecialSize(nextHeader.size);
+        final realName = await _readFullBlock(amount: numBlocks(size));
 
         final readName = realName.readString(0, realName.length);
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
@@ -247,7 +239,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
     // Note: Calling cancel is safe when the stream has already been completed.
     // It's a noop in that case, which is what we want.
-    return _chunkedStream.cancel();
+    return _reader.close();
   }
 
   /// Utility function for quickly iterating through all entries in [tarStream].
@@ -317,7 +309,7 @@ class TarReader implements StreamIterator<TarEntry> {
       Uint8List block;
 
       do {
-        block = await _chunkedStream.readBytes(blockSize);
+        block = await _reader.nextBlock();
         if (!block.isAllZeroes) {
           throw TarException(
               'Illegal content after the end of the tar archive.');
@@ -333,15 +325,24 @@ class TarReader implements StreamIterator<TarEntry> {
     throw TarException.header('Unexpected end of file');
   }
 
-  /// Reads a block with the requested [size], or throws an unexpected EoF
-  /// exception.
-  Future<Uint8List> _readFullBlock(int size, {bool allowEmpty = false}) async {
-    final block = await _chunkedStream.readBytes(size);
-    if (block.length != size && !(allowEmpty && block.isEmpty)) {
-      _unexpectedEof();
-    }
+  /// Reads [amount] blocks from the input stream, or throws an exception if
+  /// the stream ends prematurely.
+  Future<Uint8List> _readFullBlock({bool allowEmpty = false, int amount = 1}) {
+    final blocks = Uint8List(amount * blockSize);
+    var offset = 0;
 
-    return block;
+    return _reader.nextBlocks(amount).forEach((chunk) {
+      blocks.setAll(offset, chunk);
+      offset += chunk.length;
+    }).then((void _) {
+      if (allowEmpty && offset == 0) {
+        return Uint8List(0);
+      } else if (offset < blocks.length) {
+        _unexpectedEof();
+      } else {
+        return blocks;
+      }
+    });
   }
 
   /// Reads the next block header and assumes that the underlying reader
@@ -357,7 +358,7 @@ class TarReader implements StreamIterator<TarEntry> {
     if (rawHeader.isEmpty) return null;
 
     if (rawHeader.isAllZeroes) {
-      rawHeader = await _chunkedStream.readBytes(blockSize);
+      rawHeader = await _reader.nextBlock();
 
       // Exactly 1 block of zeroes is read and EOF is hit.
       if (rawHeader.isEmpty) return null;
@@ -393,9 +394,9 @@ class TarReader implements StreamIterator<TarEntry> {
       final sparseDataLength =
           sparseData.fold<int>(0, (value, element) => value + element.length);
 
-      final streamLength = nextBlockSize(sparseDataLength);
-      final safeStream =
-          _publishStream(_chunkedStream.readStream(streamLength), streamLength);
+      final streamBlockCount = numBlocks(sparseDataLength);
+      final safeStream = _publishStream(
+          _reader.nextBlocks(streamBlockCount), streamBlockCount * blockSize);
       return sparseStream(safeStream, sparseHoles, header.size);
     } else {
       var size = header.size;
@@ -408,9 +409,8 @@ class TarReader implements StreamIterator<TarEntry> {
       if (size == 0) {
         return _publishStream(const Stream<Never>.empty(), 0);
       } else {
-        _markPaddingToSkip(size);
-        return _publishStream(
-            _chunkedStream.readStream(header.size), header.size);
+        final blockCount = numBlocks(header.size);
+        return _publishStream(_reader.nextBlocks(blockCount), header.size);
       }
     }
   }
@@ -441,15 +441,6 @@ class TarReader implements StreamIterator<TarEntry> {
         },
       );
     });
-  }
-
-  /// Skips to the next block after reading [readSize] bytes from the beginning
-  /// of a previous block.
-  void _markPaddingToSkip(int readSize) {
-    final offsetInLastBlock = readSize.toUnsigned(blockSizeLog2);
-    if (offsetInLastBlock != 0) {
-      _skipNext = blockSize - offsetInLastBlock;
-    }
   }
 
   /// Checks the PAX headers for GNU sparse headers.
@@ -519,7 +510,7 @@ class TarReader implements StreamIterator<TarEntry> {
     /// Ensures that [block] h as at least [n] tokens.
     Future<void> feedTokens(int n) async {
       while (newLineCount < n) {
-        final newBlock = await _chunkedStream.readBytes(blockSize);
+        final newBlock = await _readFullBlock();
         if (newBlock.length < blockSize) {
           throw TarException.header(
               'GNU Sparse Map does not have enough lines!');
@@ -665,10 +656,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
     while (isExtended) {
       // Ok, we have a new block of sparse headers to process
-      final block = await _chunkedStream.readBytes(blockSize);
-      if (block.length < blockSize) {
-        throw TarException.header('Unexpected EoF while reading sparse maps');
-      }
+      final block = await _readFullBlock();
 
       // A full block of sparse data contains up to 21 entries
       for (var i = 0; i < 21; i++) {
@@ -695,10 +683,6 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
   void newGlobals(Map<String, String> headers) {
     _globalHeaders.addAll(headers);
   }
-
-  void addLocal(String key, String value) => _localHeaders[key] = value;
-
-  void removeLocal(String key) => _localHeaders.remove(key);
 
   /// Applies new local PAX-headers from the map.
   ///
@@ -857,27 +841,50 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
 /// [ChunkedStreamReader.readStream] might return a stream shorter than
 /// expected. That indicates an invalid tar file though, since the correct size
 /// is stored in the header.
-class _OutgoingStreamGuard extends EventSink<List<int>> {
-  final int expectedSize;
+class _OutgoingStreamGuard extends EventSink<Uint8List> {
+  int remainingContentSize;
+  int remainingPaddingSize;
+
   final EventSink<List<int>> out;
   void Function() onDone;
 
-  int emittedSize = 0;
   bool hadError = false;
+  bool isInContent = true;
 
-  _OutgoingStreamGuard(this.expectedSize, this.out, this.onDone);
+  _OutgoingStreamGuard(this.remainingContentSize, this.out, this.onDone)
+      : remainingPaddingSize = _paddingFor(remainingContentSize);
+
+  static int _paddingFor(int contentSize) {
+    final offsetInLastBlock = contentSize.toUnsigned(blockSizeLog2);
+    if (offsetInLastBlock != 0) {
+      return blockSize - offsetInLastBlock;
+    }
+    return 0;
+  }
 
   @override
-  void add(List<int> event) {
-    emittedSize += event.length;
-    // We have checks limiting the length of outgoing streams. If the stream is
-    // larger than expected, that's a bug in pkg:tar.
-    assert(
-        emittedSize <= expectedSize,
-        'Stream now emitted $emittedSize bytes, but only expected '
-        '$expectedSize');
+  void add(Uint8List event) {
+    if (isInContent) {
+      if (event.length <= remainingContentSize) {
+        // We can fully add this chunk as it consists entirely of data
+        out.add(event);
+        remainingContentSize -= event.length;
+      } else {
+        // We can add the first bytes as content, the others are padding that we
+        // shouldn't emit
+        out.add(event.sublistView(0, remainingContentSize));
+        isInContent = false;
+        remainingPaddingSize -= event.length - remainingContentSize;
+        remainingContentSize = 0;
+      }
+    } else {
+      // Ok, the entire event is padding
+      remainingPaddingSize -= event.length;
+    }
 
-    out.add(event);
+    // The underlying stream comes from pkg:tar, so if we get too many bytes
+    // that's a bug in this package.
+    assert(remainingPaddingSize >= 0, 'Stream emitted to many bytes');
   }
 
   @override
@@ -888,15 +895,14 @@ class _OutgoingStreamGuard extends EventSink<List<int>> {
 
   @override
   void close() {
-    onDone();
-
     // If the stream stopped after an error, the user is already aware that
     // something is wrong.
-    if (emittedSize < expectedSize && !hadError) {
+    if (remainingContentSize > 0 && !hadError) {
       out.addError(
           TarException('Unexpected end of tar file'), StackTrace.current);
     }
 
+    onDone();
     out.close();
   }
 }

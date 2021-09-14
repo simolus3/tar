@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:tar/src/constants.dart';
 import 'package:tar/src/exception.dart';
 import 'package:tar/src/utils.dart';
 import 'package:test/test.dart';
@@ -182,6 +184,100 @@ void main() {
         expect(() => parsePaxTime(invalid), throwsA(isA<TarException>()));
       });
     }
+  });
+
+  group('BlockReader', () {
+    late StreamController<List<int>> controller;
+
+    setUp(() {
+      controller = StreamController();
+    });
+
+    test('does not attach listener before needed', () async {
+      final reader = BlockReader(controller.stream);
+      expect(controller.hasListener, isFalse);
+
+      final stream = reader.nextBlocks(10);
+      expect(controller.hasListener, isFalse);
+
+      stream.listen(null);
+      // Should not attach synchronously
+      expect(controller.hasListener, isFalse);
+
+      await pumpEventQueue(times: 1);
+      expect(controller.hasListener, isTrue);
+    });
+
+    test('emits individual blocks', () async {
+      for (var i = 0; i < 10; i++) {
+        controller.add(Uint8List(blockSize)..fillRange(0, blockSize, i));
+      }
+
+      final reader = BlockReader(controller.stream);
+
+      for (var i = 0; i < 10; i++) {
+        expect((await reader.nextBlock()).first, i);
+      }
+      await reader.close();
+    });
+
+    test('combines multiple chunks into a block', () async {
+      controller
+        ..add(Uint8List(blockSize - 10))
+        ..add(Uint8List(blockSize + 20)..fillRange(0, blockSize + 10, 1));
+
+      final reader = BlockReader(controller.stream);
+      final firstBlock = await reader.nextBlock();
+
+      expect(firstBlock[0], 0);
+      expect(firstBlock[511], 1);
+
+      final secondBlock = await reader.nextBlock();
+      expect(secondBlock[0], 1);
+      expect(secondBlock[511], 1);
+
+      controller.close(); // ignore: unawaited_futures
+      final thirdBlock = await reader.nextBlock();
+      expect(thirdBlock.length, 10);
+
+      expect(controller.hasListener, isFalse);
+      await reader.close();
+    });
+
+    test('can pause and resume from saved chunk', () async {
+      controller
+        ..add(Uint8List(blockSize - 10))
+        ..add(Uint8List(2 * blockSize + 10)..fillRange(0, blockSize + 10, 1));
+
+      final reader = BlockReader(controller.stream);
+      // ignore: cancel_subscriptions
+      final subscription = reader.nextBlocks(3).listen(null);
+      var eventCounter = 0;
+
+      subscription.onData(expectAsync1((data) {
+        eventCounter += data.length ~/ blockSize;
+
+        // After the first block completed, we will trailing data. Ensure that
+        // resuming in this state works!
+        if (eventCounter == 1) {
+          subscription.pause(Future.delayed(Duration.zero));
+        }
+      }, max: 3));
+
+      await subscription.asFuture<void>();
+      expect(eventCounter, 3);
+      await reader.close();
+    });
+
+    test('can cancel subscriptions', () async {
+      controller
+        ..add(Uint8List(blockSize))
+        ..add(Uint8List(blockSize));
+
+      final reader = BlockReader(controller.stream);
+      await reader.nextBlocks(2).first;
+      await reader.close();
+    });
   });
 }
 
