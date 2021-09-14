@@ -35,7 +35,9 @@ Stream<List<int>> createTarStream(Iterable<String> files,
   ];
 
   if (sparseVersion != null) {
-    args..add('--sparse')..add('--sparse-version=$sparseVersion');
+    args
+      ..add('--sparse')
+      ..add('--sparse-version=$sparseVersion');
   }
 
   final tar = await startTar(args, baseDir: baseDir);

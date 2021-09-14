@@ -70,7 +70,10 @@ void main() {
       final zeroBlock = Uint8List(512);
       final controller = StreamController<List<int>>();
       controller.onListen = () {
-        controller..add(zeroBlock)..add(zeroBlock)..add(zeroBlock);
+        controller
+          ..add(zeroBlock)
+          ..add(zeroBlock)
+          ..add(zeroBlock);
       };
 
       final reader = TarReader(controller.stream);
