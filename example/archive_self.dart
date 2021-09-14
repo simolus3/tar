@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:tar/tar.dart';
 import 'package:path/path.dart' as p;
+import 'package:tar/tar.dart';
 
 const outputName = 'self.tar.gz';
 
