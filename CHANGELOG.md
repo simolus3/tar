@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Improve performance when reading large archives
+
 ## 0.5.0
 
 - Support sync encoding with `tarConverter`.

@@ -5,11 +5,11 @@
 This package provides stream-based readers and writers for tar files.
 
 When working with large tar files, this library consumes considerably less memory
-than [package:archive](https://pub.dev/packages/archive), although it is slightly slower.
+than [package:archive](https://pub.dev/packages/archive), although it is slightly slower due to the async overhead.
 
 ## Reading
 
-To read entries from a tar file, use
+To read entries from a tar file, use a `TarReader` with a `Stream` emitting bytes (as `List<int>`):
 
 ```dart
 import 'dart:convert';
@@ -131,7 +131,7 @@ To change the output format on the `tarWriter` transformer, use
 
 As the content of tar entries is defined as an asynchronous stream, the tar encoder is asynchronous too.
 The more specific `SynchronousTarEntry` class stores tar content as a list of bytes, meaning that it can be
-written synchronously too.
+written synchronously.
 
 To synchronously write tar files, use `tarConverter` (or `tarConverterWith` for options):
 
