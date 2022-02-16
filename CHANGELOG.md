@@ -1,3 +1,7 @@
+## 0.5.2
+
+- This package now supports being compiled to JavaScript.
+
 ## 0.5.1
 
 - Improve performance when reading large archives

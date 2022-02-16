@@ -17,7 +17,7 @@ Future<Process> startTar(List<String> args, {String? baseDir}) {
     final sink = ByteConversionSink.withCallback((result) => data = result);
     proc.stderr.forEach(sink.add).then((Object? _) {
       sink.close();
-      const LineSplitter().convert(utf8.decode(data)).forEach(stderr.writeln);
+      const LineSplitter().convert(utf8.decode(data)).forEach(print);
     });
 
     return proc;

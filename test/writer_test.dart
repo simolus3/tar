@@ -1,3 +1,4 @@
+@TestOn('vm')
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -136,7 +137,7 @@ void main() {
 
     final proc = await writeToTar(['--list', '--verbose'], Stream.value(entry));
     expect(proc.lines, emits(contains(tenGbSize.toString())));
-  }, testOn: '!windows');
+  }, testOn: '!windows && !node');
 
   group('refuses to write files with OutputFormat.gnu', () {
     void shouldThrow(tar.TarEntry entry) {

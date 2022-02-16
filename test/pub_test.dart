@@ -3,6 +3,7 @@
 // The test cases were found by running an earlier version of this package
 // across all packages and versions found on pub.dev. This package needs to
 // be able to read every package version ever uploaded to pub.
+@TestOn('vm')
 import 'dart:io';
 
 import 'package:tar/tar.dart';
