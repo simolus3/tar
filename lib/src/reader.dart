@@ -754,6 +754,10 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
     final map = <String, String>{};
     final sparseMap = <String>[];
 
+    // NB: Some Tar files have malformed UTF-8 data in the headers, we should
+    // decode them anyways even if they're broken
+    final utf8Decoder = Utf8Decoder(allowMalformed: true);
+
     Never error() => throw TarException.header('Invalid PAX record');
 
     while (offset < data.length) {
@@ -795,13 +799,13 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
         error();
       }
 
-      final key = utf8.decoder.convert(data, offset, nextEquals);
+      final key = utf8Decoder.convert(data, offset, nextEquals);
       // Skip over the equals sign
       offset = nextEquals + 1;
 
       // Subtract one for trailing newline
       final endOfValue = endOfEntry - 1;
-      final value = utf8.decoder.convert(data, offset, endOfValue);
+      final value = utf8Decoder.convert(data, offset, endOfValue);
 
       if (!_isValidPaxRecord(key, value)) {
         error();
