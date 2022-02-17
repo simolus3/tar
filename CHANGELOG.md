@@ -1,4 +1,4 @@
-## 0.6.0-dev
+## 0.5.3
 
 - Improve error messages when reading a tar entry after, or during, a call to
   `moveNext()`.
