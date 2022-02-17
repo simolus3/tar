@@ -65,6 +65,55 @@ void main() {
     expect(() => reader.moveNext(), throwsStateError);
   });
 
+  test("can't read a stream multiple times", () async {
+    final input = fs.file('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+    await reader.moveNext();
+
+    reader.current.contents.listen(null);
+    expect(
+      () => reader.current.contents.listen(null),
+      throwsA(isStateError.having(
+        (e) => e.message,
+        'message',
+        contains('A tar entry has been listened to multiple times.'),
+      )),
+    );
+  });
+
+  test("can't read a stream while a call to moveNext() is active", () async {
+    final input = fs.file('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+    await reader.moveNext();
+
+    unawaited(reader.moveNext());
+    expect(
+      () => reader.current.contents.listen(null),
+      throwsA(isStateError.having(
+        (e) => e.message,
+        'message',
+        contains('A tar entry has been listened to multiple times.'),
+      )),
+    );
+  });
+
+  test("can't read the stream of an old tar entry", () async {
+    final input = fs.file('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+    await reader.moveNext();
+    final oldContents = reader.current.contents;
+    await reader.moveNext();
+
+    expect(
+      () => oldContents.listen(null),
+      throwsA(isStateError.having(
+        (e) => e.message,
+        'message',
+        contains('Tried listening to an outdated tar entry.'),
+      )),
+    );
+  });
+
   group('the reader closes itself', () {
     test("at the end of a file", () async {
       // two zero blocks terminate a tar file

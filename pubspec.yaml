@@ -1,6 +1,6 @@
 name: tar
 description: Memory-efficient, streaming implementation of the tar file format
-version: 0.5.2
+version: 0.6.0-dev
 repository: https://github.com/simolus3/tar/
 
 environment:

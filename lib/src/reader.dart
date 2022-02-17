@@ -424,7 +424,37 @@ class TarReader implements StreamIterator<TarEntry> {
     // There can only be one content stream at a time. This precondition is
     // checked by _prepareToReadHeaders.
     assert(_underlyingContentStream == null);
-    return _underlyingContentStream = Stream.eventTransformed(stream, (sink) {
+    Stream<List<int>>? thisStream;
+
+    return thisStream =
+        _underlyingContentStream = Stream.eventTransformed(stream, (sink) {
+      // This callback is called when we have a listener. Make sure that, at
+      // this point, this stream is still the active content stream.
+      // If users store the contents of a tar header, then read more tar
+      // entries, and finally try to read the stream of the old contents, they'd
+      // get an exception about the straem already being listened to.
+      // This can be a bit confusing, so this check enables a better error UX.
+      if (thisStream != _underlyingContentStream) {
+        throw StateError(
+          'Tried listening to an outdated tar entry. \n'
+          'As all tar entries found by a reader are backed by a single source '
+          'stream, only the latest tar entry can be read. It looks like you '
+          'stored the results of `tarEntry.contents` somewhere, called '
+          '`reader.moveNext()` and then read the contents of the previous '
+          'entry.\n'
+          'For more details, including a discussion of workarounds, see '
+          'https://github.com/simolus3/tar/issues/18',
+        );
+      } else if (_listenedToContentsOnce) {
+        throw StateError(
+          'A tar entry has been listened to multiple times. \n'
+          'As all tar entries are read from what\'s likely a single-'
+          'subscription stream, this is unsupported. If you didn\'t read a tar '
+          'entry multiple times yourself, perhaps you\'ve called `moveNext()` '
+          'before reading contents?',
+        );
+      }
+
       _listenedToContentsOnce = true;
 
       late _OutgoingStreamGuard guard;
@@ -432,7 +462,7 @@ class TarReader implements StreamIterator<TarEntry> {
         length,
         sink,
         // Reset state when the stream is done. This will only be called when
-        // the sream is done, not when a listener cancels.
+        // the stream is done, not when a listener cancels.
         () {
           _underlyingContentStream = null;
           if (guard.hadError) {

@@ -1,3 +1,8 @@
+## 0.6.0-dev
+
+- Improve error messages when reading a tar entry after, or during, a call to
+  `moveNext()`.
+
 ## 0.5.2
 
 - This package now supports being compiled to JavaScript.
