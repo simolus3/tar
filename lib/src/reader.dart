@@ -799,18 +799,20 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
       // Skip over the equals sign
       offset = nextEquals + 1;
 
-      // Subtract one for trailing newline
+      // Subtract one for trailing newline for value
       final endOfValue = endOfEntry - 1;
-      final value = utf8.decoder.convert(data, offset, endOfValue);
 
-      if (!_isValidPaxRecord(key, value)) {
+      if (!_isValidPaxKey(key)) {
         error();
       }
 
       // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
       // GNU.sparse.offset and GNU.sparse.numbytes headers.
       if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
-        if ((sparseMap.length.isEven && key != paxGNUSparseOffset) ||
+        final value = utf8.decoder.convert(data, offset, endOfValue);
+
+        if (!_isValidPaxRecord(key, value) ||
+            (sparseMap.length.isEven && key != paxGNUSparseOffset) ||
             (sparseMap.length.isOdd && key != paxGNUSparseNumBytes) ||
             value.contains(',')) {
           error();
@@ -820,6 +822,12 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
       } else if (!ignoreUnknown || supportedPaxHeaders.contains(key)) {
         // Ignore unrecognized headers to avoid unbounded growth of the global
         // header map.
+        final value = unsafeUtf8Decoder.convert(data, offset, endOfValue);
+
+        if (!_isValidPaxRecord(key, value)) {
+          error();
+        }
+
         map[key] = value;
       }
 
@@ -844,16 +852,23 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
     }
   }
 
+  // NB: Some Tar files have malformed UTF-8 data in the headers, we should
+  // decode them anyways even if they're broken
+  static const unsafeUtf8Decoder = Utf8Decoder(allowMalformed: true);
+
+  static bool _isValidPaxKey(String key) {
+    // These limitations are documented in the PAX standard.
+    return key.isNotEmpty && !key.contains('=') & !key.codeUnits.contains(0);
+  }
+
   /// Checks whether [key], [value] is a valid entry in a pax header.
   ///
   /// This is adopted from the Golang tar reader (`validPAXRecord`), which says
   /// that "Keys and values should be UTF-8, but the number of bad writers out
   /// there forces us to be a more liberal."
   static bool _isValidPaxRecord(String key, String value) {
-    // These limitations are documented in the PAX standard.
-    if (key.isEmpty || key.contains('=')) return false;
-
-    // These aren't, but Golangs's tar has them and got away with it.
+    // These aren't documented in any standard, but Golangs's tar has them and
+    // got away with it.
     switch (key) {
       case paxPath:
       case paxLinkpath:
@@ -861,7 +876,7 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
       case paxGname:
         return !value.codeUnits.contains(0);
       default:
-        return !key.codeUnits.contains(0);
+        return true;
     }
   }
 }
