@@ -737,6 +737,11 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
   @override
   Iterable<String> get keys => {..._globalHeaders.keys, ..._localHeaders.keys};
 
+
+  // NB: Some Tar files have malformed UTF-8 data in the headers, we should
+  // decode them anyways even if they're broken
+  final unsafeUtf8Decoder = const Utf8Decoder(allowMalformed: true);
+
   /// Decodes the content of an extended pax header entry.
   ///
   /// Semantically, a [PAX Header][posix pax] is a map with string keys and
@@ -753,10 +758,6 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
     var offset = 0;
     final map = <String, String>{};
     final sparseMap = <String>[];
-
-    // NB: Some Tar files have malformed UTF-8 data in the headers, we should
-    // decode them anyways even if they're broken
-    final utf8Decoder = Utf8Decoder(allowMalformed: true);
 
     Never error() => throw TarException.header('Invalid PAX record');
 
@@ -799,21 +800,18 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
         error();
       }
 
-      final key = utf8Decoder.convert(data, offset, nextEquals);
+      final key = utf8.decoder.convert(data, offset, nextEquals);
       // Skip over the equals sign
       offset = nextEquals + 1;
 
-      // Subtract one for trailing newline
+      // Subtract one for trailing newline for value
       final endOfValue = endOfEntry - 1;
-      final value = utf8Decoder.convert(data, offset, endOfValue);
-
-      if (!_isValidPaxRecord(key, value)) {
-        error();
-      }
 
       // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
       // GNU.sparse.offset and GNU.sparse.numbytes headers.
       if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
+        final value = unsafeUtf8Decoder.convert(data, offset, endOfValue);
+
         if ((sparseMap.length.isEven && key != paxGNUSparseOffset) ||
             (sparseMap.length.isOdd && key != paxGNUSparseNumBytes) ||
             value.contains(',')) {
@@ -824,6 +822,12 @@ class PaxHeaders extends UnmodifiableMapBase<String, String> {
       } else if (!ignoreUnknown || supportedPaxHeaders.contains(key)) {
         // Ignore unrecognized headers to avoid unbounded growth of the global
         // header map.
+        final value = unsafeUtf8Decoder.convert(data, offset, endOfValue);
+
+        if (!_isValidPaxRecord(key, value)) {
+          error();
+        }
+
         map[key] = value;
       }
 
