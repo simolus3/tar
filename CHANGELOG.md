@@ -1,3 +1,10 @@
+## 0.5.4
+
+- Fix generating corrupt tar files when adding lots of entries at very high
+  speeds [(#20)](https://github.com/simolus3/tar/issues/20).
+- Allow tar files with invalid utf8 content in PAX header values if those
+  values aren't used for anything important.
+
 ## 0.5.3
 
 - Improve error messages when reading a tar entry after, or during, a call to
