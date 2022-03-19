@@ -512,7 +512,8 @@ class BlockReader {
     controller
       ..onListen = scheduleInitialEmit
       ..onPause = () {
-        assert(state == _StreamState.initial || state == _StreamState.attached);
+        assert(state == _StreamState.initial || state == _StreamState.attached,
+            'Unexpected pause event in $state.');
 
         if (state == _StreamState.initial) {
           state = _StreamState.pausedAfterInitial;
