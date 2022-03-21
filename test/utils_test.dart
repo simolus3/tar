@@ -279,6 +279,27 @@ void main() {
       await reader.nextBlocks(2).first;
       await reader.close();
     });
+
+    test('can pause stream subscriptions when all data has been emitted',
+        () async {
+      final reader = BlockReader(controller.stream);
+      controller.add(Uint8List(blockSize * 3));
+      await reader.nextBlock();
+
+      late StreamSubscription<Uint8List> subscription;
+      final didPause = Completer<void>();
+
+      subscription = reader.nextBlocks(2).listen((_) {
+        scheduleMicrotask(() {
+          subscription.pause();
+          didPause.complete();
+        });
+      });
+
+      await didPause.future;
+      await subscription.cancel();
+      await reader.close();
+    });
   });
 }
 
