@@ -1,6 +1,6 @@
 name: tar
 description: Memory-efficient, streaming implementation of the tar file format
-version: 0.5.4
+version: 0.5.5
 repository: https://github.com/simolus3/tar/
 
 environment:
@@ -13,7 +13,7 @@ dependencies:
 
 dev_dependencies:
   charcode: ^1.2.0
-  extra_pedantic: ^1.4.0
+  extra_pedantic: ^2.0.0
   file: ^6.1.2
   node_io: ^2.1.0
   path: ^1.8.0

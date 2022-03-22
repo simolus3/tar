@@ -95,7 +95,7 @@ extension ByteBufferUtils on Uint8List {
   int computeUnsignedHeaderChecksum() {
     // Accessing the last element first helps the VM eliminate bounds checks in
     // the loops below.
-    this[blockSize - 1];
+    this[blockSize - 1]; // ignore: unnecessary_statements
     var result = checksumLength * _checksumPlaceholder;
 
     for (var i = 0; i < checksumOffset; i++) {
@@ -109,7 +109,7 @@ extension ByteBufferUtils on Uint8List {
   }
 
   int computeSignedHeaderChecksum() {
-    this[blockSize - 1];
+    this[blockSize - 1]; // ignore: unnecessary_statements
     // Note that _checksumPlaceholder.toSigned(8) == _checksumPlaceholder
     var result = checksumLength * _checksumPlaceholder;
 

@@ -1,3 +1,8 @@
+## 0.5.5
+
+- Fix a crash when pausing a subscription to `TarEntry.contents` right before
+  it ends.
+
 ## 0.5.4
 
 - Fix generating corrupt tar files when adding lots of entries at very high
