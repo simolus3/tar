@@ -1,7 +1,10 @@
+@internal
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+
+import 'package:meta/meta.dart';
 
 import 'charcodes.dart';
 import 'constants.dart';

@@ -1,3 +1,7 @@
+## 0.5.5+1
+
+- No user-visible changes.
+
 ## 0.5.5
 
 - Fix a crash when pausing a subscription to `TarEntry.contents` right before
