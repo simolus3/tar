@@ -6,31 +6,27 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  PUB_ENVIRONMENT: bot.github
-  PUB_CACHE: ".dart_tool/pub_cache"
-
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
       - uses: actions/cache@v2
         with:
-          path: .dart_tool
+          path: ${{ env.PUB_CACHE }}
           key: dart-tool-${{ hashFiles('pubspec.yaml') }}
 
       - name: "Install dependencies"
         run: dart pub upgrade
-      
+
       - name: "Ensure formatted"
         run: dart format --output=none --set-exit-if-changed .
 
       - name: "Analyze project"
         run: dart analyze --fatal-infos
-  
+
   test:
     strategy:
       matrix:
@@ -44,15 +40,15 @@ jobs:
       - uses: dart-lang/setup-dart@v1
       - uses: actions/cache@v2
         with:
-          path: .dart_tool
+          path: ${{ env.PUB_CACHE }}
           key: dart-tool-${{ hashFiles('pubspec.yaml') }}
-            
+
       - name: "Get dependencies"
-        run: dart pub get
+        run: dart pub upgrade
 
       - name: "Download 7za"
         run: dart run tool/download_7za.dart
         if: runner.os == 'Windows'
-      
+
       - name: "Run tests"
         run: dart test
