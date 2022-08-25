@@ -15,7 +15,9 @@ jobs:
       - uses: dart-lang/setup-dart@v1
       - uses: actions/cache@v2
         with:
-          path: ${{ env.PUB_CACHE }}
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
           key: dart-tool-${{ hashFiles('pubspec.yaml') }}
 
       - name: "Install dependencies"
@@ -44,7 +46,7 @@ jobs:
           key: dart-tool-${{ hashFiles('pubspec.yaml') }}
 
       - name: "Get dependencies"
-        run: dart pub upgrade
+        run: dart pub get
 
       - name: "Download 7za"
         run: dart run tool/download_7za.dart
