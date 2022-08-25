@@ -13,8 +13,12 @@ dependencies:
 
 dev_dependencies:
   charcode: ^1.2.0
-  extra_pedantic: ^2.0.0
+  extra_pedantic: ^3.0.0
   file: ^6.1.2
   node_io: ^2.1.0
   path: ^1.8.0
-  test: ^1.17.4
+  test: ^1.20.0
+
+dependency_overrides:
+  # Waiting for https://github.com/pulyaevskiy/node-interop/issues/110
+  file: '>=6.1.0 <6.1.3'
