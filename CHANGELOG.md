@@ -1,3 +1,7 @@
+## 0.5.6
+
+- Allow cancelling a `TarEntry.contents` subscription before reading more files.
+
 ## 0.5.5+1
 
 - No user-visible changes.

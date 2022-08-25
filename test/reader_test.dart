@@ -114,6 +114,38 @@ void main() {
     );
   });
 
+  test('can cancel a stream and then read further entries', () async {
+    final input = fs.file('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+    addTearDown(reader.cancel);
+
+    await reader.moveNext();
+
+    await reader.current.contents
+        .listen(expectAsync1((_) {}, count: 0))
+        .cancel();
+
+    expect(await reader.moveNext(), isTrue);
+  });
+
+  test('cancelling the reader closes the current subscription', () async {
+    final input = fs.file('reference/posix.tar').openRead();
+    final reader = TarReader(input);
+
+    // Skip forward to the first actual file
+    while (await reader.moveNext()) {
+      if (reader.current.header.hasContent) break;
+    }
+
+    // ignore: cancel_subscriptions
+    final subscription = reader.current.contents
+        .listen(null, onDone: expectAsync0(() {}))
+      ..pause();
+
+    await reader.cancel();
+    subscription.resume();
+  });
+
   group('the reader closes itself', () {
     test("at the end of a file", () async {
       // two zero blocks terminate a tar file
