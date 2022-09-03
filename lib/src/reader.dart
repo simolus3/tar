@@ -246,7 +246,8 @@ class TarReader implements StreamIterator<TarEntry> {
   /// This methods prevents:
   ///  * concurrent calls to [moveNext]
   ///  * a call to [moveNext] while a stream is active:
-  ///    * if [contents] has never been listened to, we drain the stream
+  ///    * if [TarEntry.contents] has never been listened to, or if it has a
+  ///      cancelled subscription, we drain the stream.
   ///    * otherwise, throws a [StateError]
   Future<void> _prepareToReadHeaders() async {
     if (_isDone) {
