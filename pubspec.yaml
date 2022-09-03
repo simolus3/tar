@@ -18,7 +18,3 @@ dev_dependencies:
   node_io: ^2.1.0
   path: ^1.8.0
   test: ^1.20.0
-
-dependency_overrides:
-  # Waiting for https://github.com/pulyaevskiy/node-interop/issues/110
-  file: '>=6.1.0 <6.1.3'
