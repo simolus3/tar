@@ -38,12 +38,13 @@ void main() {
     const lengths = [024 * 1024 * 128 + 12, 12, 0];
 
     for (final length in lengths) {
-      test('with length $length', () {
+      test('with length $length', () async {
         final stream = zeroes(length);
 
         expect(
-          stream.fold<int>(0, (previous, element) => previous + element.length),
-          completion(length),
+          await stream.fold<int>(
+              0, (previous, element) => previous + element.length),
+          length,
         );
       });
     }
