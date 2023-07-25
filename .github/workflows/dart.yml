@@ -10,17 +10,22 @@ on:
 
 jobs:
   analyze:
+    strategy:
+      matrix:
+        dart-sdk: [stable, beta, dev]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.dart-sdk }}
       - uses: actions/cache@v2
         with:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-tool-${{ hashFiles('pubspec.yaml') }}
+          key: dart-tool-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
 
       - name: "Install dependencies"
         run: dart pub upgrade
@@ -35,6 +40,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        dart-sdk: [stable, beta, dev]
     runs-on: ${{ matrix.os }}
     # analyze creates the cache, avoid downloading dependencies again here
     needs: analyze
@@ -42,10 +48,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.dart-sdk }}
       - uses: actions/cache@v2
         with:
           path: ${{ env.PUB_CACHE }}
-          key: dart-tool-${{ hashFiles('pubspec.yaml') }}
+          key: dart-tool-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
 
       - name: "Get dependencies"
         run: dart pub get

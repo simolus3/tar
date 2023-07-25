@@ -176,7 +176,7 @@ void main() {
   });
 }
 
-class _NullStreamSink<T> extends StreamSink<T> {
+class _NullStreamSink<T> implements StreamSink<T> {
   @override
   void add(T event) {}
 
