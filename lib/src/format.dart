@@ -1,6 +1,9 @@
 /// Holds the possible TAR formats that a file could take.
 ///
-/// This library only supports the V7, USTAR, PAX, GNU, and STAR formats.
+/// This library supports the V7, USTAR, PAX, GNU, and STAR formats. The
+/// [MaybeTarFormat] class generally describes any combination of those formats
+/// and represents that we don't know the exact format yet. As soon as we do
+/// know, the [TarFormat] enum represents the exact format of a header.
 sealed class MaybeTarFormat {
   /// The TAR formats are encoded in powers of two in [_value], such that we
   /// can refine our guess via bit operations as we discover more information
@@ -63,6 +66,10 @@ sealed class MaybeTarFormat {
   bool get valid;
 }
 
+/// A fully resolved tar format.
+///
+/// When we know that a tar entry must use a specific format, this is represented
+/// with a value from this [TarFormat] enum.
 enum TarFormat implements MaybeTarFormat {
   /// Original Unix Version 7 (V7) AT&T tar tool prior to standardization.
   ///
