@@ -1,4 +1,4 @@
-## 0.6.0
+## 1.0.0
 
 - __Breaking__ Add class modifiers where applicable.
 
