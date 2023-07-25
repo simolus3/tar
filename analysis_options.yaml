@@ -1,9 +1,6 @@
-include: package:extra_pedantic/analysis_options.2.0.0.yaml
+include: package:extra_pedantic/analysis_options.4.0.0.yaml
 
 analyzer:
-  strong-mode:
-    implicit-casts: false
-    implicit-dynamic: false
   language:
     strict-inference: true
     strict-raw-types: true

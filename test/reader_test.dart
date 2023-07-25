@@ -10,6 +10,8 @@ import 'package:test/test.dart';
 
 import 'utils.dart';
 
+// ignore_for_file: discarded_futures
+
 void main() {
   group('POSIX.1-2001', () {
     test('reads files', () => _testWith('reference/posix.tar'));

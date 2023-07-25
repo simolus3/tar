@@ -143,6 +143,7 @@ void main() {
     void shouldThrow(tar.TarEntry entry) {
       final output = tar.tarWritingSink(_NullStreamSink(),
           format: tar.OutputFormat.gnuLongName);
+      // ignore: discarded_futures
       expect(Stream.value(entry).pipe(output), throwsA(isUnsupportedError));
     }
 

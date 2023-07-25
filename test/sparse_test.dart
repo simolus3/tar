@@ -11,6 +11,8 @@ import 'package:test/test.dart';
 
 import 'system_tar.dart';
 
+// ignore_for_file: discarded_futures
+
 /// Writes [size] random bytes to [path].
 Future<void> createTestFile(String path, int size) {
   final random = Random();
