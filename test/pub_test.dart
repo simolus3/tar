@@ -1,9 +1,11 @@
-// Simple tests to ensure that we can parse weird tars found on pub.
-//
-// The test cases were found by running an earlier version of this package
-// across all packages and versions found on pub.dev. This package needs to
-// be able to read every package version ever uploaded to pub.
+/// Simple tests to ensure that we can parse weird tars found on pub.
+///
+/// The test cases were found by running an earlier version of this package
+/// across all packages and versions found on pub.dev. This package needs to
+/// be able to read every package version ever uploaded to pub.
 @TestOn('vm')
+library;
+
 import 'dart:io';
 
 import 'package:tar/tar.dart';

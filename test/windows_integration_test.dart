@@ -1,4 +1,6 @@
 @TestOn('windows && vm')
+library;
+
 import 'dart:io';
 
 import 'package:tar/tar.dart';

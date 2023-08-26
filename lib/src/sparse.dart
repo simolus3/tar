@@ -1,4 +1,6 @@
 @internal
+library;
+
 import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 
