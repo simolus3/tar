@@ -16,7 +16,7 @@ import 'utils.dart';
 enum TypeFlag {
   /// [reg] indicates regular files.
   ///
-  /// Old tar implementations have a seperate `TypeRegA` value. This library
+  /// Old tar implementations have a separate `TypeRegA` value. This library
   /// will transparently read those as [regA].
   reg,
 
@@ -59,7 +59,7 @@ enum TypeFlag {
   /// but does not currently support persisting the global state across files.
   xGlobalHeader,
 
-  /// Indiates a sparse file in the GNU format
+  /// Indicates a sparse file in the GNU format
   gnuSparse,
 
   /// Used by the GNU format for a meta file to store the path or link name for

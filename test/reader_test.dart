@@ -934,7 +934,7 @@ void main() {
       });
     }
 
-    test('reader procudes an empty stream if the entry has no size', () async {
+    test('reader produces an empty stream if the entry has no size', () async {
       final reader = TarReader(open('trailing-slash.tar'));
       while (await reader.moveNext()) {
         expect(await reader.current.contents.toList(), isEmpty);
@@ -973,7 +973,7 @@ void main() {
   });
 
   group('PAX headers', () {
-    test('locals overrwrite globals', () {
+    test('locals overwrite globals', () {
       final header = PaxHeaders()
         ..newGlobals({'foo': 'foo', 'bar': 'bar'})
         ..newLocals({'foo': 'local'});

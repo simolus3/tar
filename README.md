@@ -172,7 +172,7 @@ In particular,
   The reader should never crash.
 - Reading a tar file can be cancelled mid-stream without leaking resources.
 
-However, the tar reader __does not__ throw exceptions for wellformed archives
+However, the tar reader __does not__ throw exceptions for well-formed archives
 with suspicious contents, such as
 
 - File names beginning with `../`, `/` or names pointing out of the archive by
