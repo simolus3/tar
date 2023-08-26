@@ -1,8 +1,8 @@
 /// Streaming tar implementation for Dart.
 ///
-/// To read tar files, see [TarReader]. To write tar files, use [tarWritingSink]
-///  or [tarWriter].
-library tar;
+/// To read tar files, see [TarReader].
+/// To write tar files, use [tarWritingSink] or [tarWriter].
+library;
 
 // For dartdoc.
 import 'src/reader.dart';

@@ -1,4 +1,6 @@
 @TestOn('linux && vm') // We currently use gnu tar to create test inputs
+library;
+
 import 'dart:io';
 
 import 'dart:math';

@@ -1,4 +1,5 @@
-// Wrapper around the `tar` command, for testing.
+/// Wrapper around the `tar` command, for testing.
+library;
 
 import 'dart:async';
 import 'dart:convert';
