@@ -54,7 +54,7 @@ final class TarReader implements StreamIterator<TarEntry> {
   /// encountered, [moveNext] will wait for further events on the stream. If
   /// further data is received, a [TarException] will be thrown and the
   /// subscription will be cancelled. Otherwise, [moveNext] effectively waits
-  /// for a done event, making a cancellation unecessary.
+  /// for a done event, making a cancellation unnecessary.
   /// Depending on the input stream, cancellations may cause unintended
   /// side-effects. In that case, [disallowTrailingData] can be used to ensure
   /// that the stream is only cancelled if it emits an invalid tar file.
@@ -87,7 +87,7 @@ final class TarReader implements StreamIterator<TarEntry> {
   /// Reads the tar stream up until the beginning of the next logical file.
   ///
   /// If such file exists, the returned future will complete with `true`. After
-  /// the future completes, the next tar entry will be evailable in [current].
+  /// the future completes, the next tar entry will be available in [current].
   ///
   /// If no such file exists, the future will complete with `false`.
   /// The future might complete with an [TarException] if the tar stream is
@@ -295,7 +295,7 @@ final class TarReader implements StreamIterator<TarEntry> {
             await cancel();
             rethrow;
           } finally {
-            // This also draines the stream
+            // This also drains the stream
             _currentStream = null;
           }
 
@@ -320,7 +320,7 @@ final class TarReader implements StreamIterator<TarEntry> {
     return size;
   }
 
-  /// Ater we detected the end of a tar file, optionally check for trailing
+  /// After we detected the end of a tar file, optionally check for trailing
   /// data.
   Future<void> _handleExpectedEof() async {
     if (_checkNoTrailingData) {

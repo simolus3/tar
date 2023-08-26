@@ -247,7 +247,7 @@ final class BlockReader {
   bool _isClosed = false;
 
   /// If a request is active, returns the current stream that we're reporting.
-  /// This controler is synchronous.
+  /// This controller is synchronous.
   StreamController<Uint8List>? _outgoing;
 
   /// The amount of (512-byte) blocks remaining before [_outgoing] should close.
@@ -273,7 +273,7 @@ final class BlockReader {
   /// only interested in a small chunk.
   ///
   /// We will never have trailing data and a pending block at the same time.
-  /// When we haver fewer than 512 bytes of trailing data, it should be stored
+  /// When we have fewer than 512 bytes of trailing data, it should be stored
   /// as a pending block instead.
   Uint8List? _trailingData;
 
@@ -300,7 +300,7 @@ final class BlockReader {
       _outgoing = null;
       _pause();
 
-      // Scheduling this in a microtask becuase the stream controller is
+      // Scheduling this in a microtask because the stream controller is
       // synchronous.
       scheduleMicrotask(() {
         // We don't need to await this since the stream controller is not used
@@ -401,11 +401,11 @@ final class BlockReader {
 
     _isClosed = true;
 
-    // Can be unawated because this is an onDone callback of the subscription,
+    // Can be unawaited because this is an onDone callback of the subscription,
     // the subscription is already complete and we're just cleaning up.
     unawaited(_subscription?.cancel());
 
-    // Can be unawated because we're fully done here, we won't do anything else
+    // Can be unawaited because we're fully done here, we won't do anything else
     // with the outgoing controller.
     unawaited(outgoing.close());
   }

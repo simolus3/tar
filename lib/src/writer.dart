@@ -439,7 +439,7 @@ final class _SynchronousTarSink implements Sink<SynchronousTarEntry> {
     final invalidOptions = values.keys.toSet()..removeAll(allowedKeys);
     if (invalidOptions.isNotEmpty) {
       throw UnsupportedError(
-        'Unsupporteed entry for OutputFormat.gnu. It uses long fields that '
+        'Unsupported entry for OutputFormat.gnu. It uses long fields that '
         "can't be represented: $invalidOptions. \n"
         'Try using OutputFormat.pax instead.',
       );
