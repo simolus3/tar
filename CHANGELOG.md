@@ -1,3 +1,7 @@
+## 1.0.2
+
+- Fix a few typos in documentation comments.
+
 ## 1.0.1
 
 - Fix an incompatibility with Dart 3.1.
