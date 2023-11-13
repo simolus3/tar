@@ -9,7 +9,9 @@ import 'package:tar/tar.dart' as tar;
 import 'package:test/test.dart';
 
 Future<Process> startTar(List<String> args, {String? baseDir}) {
-  return Process.start('tar', args, workingDirectory: baseDir).then((proc) {
+  return Process.start('tar', args,
+          workingDirectory: baseDir, includeParentEnvironment: false)
+      .then((proc) {
     expect(proc.exitCode, completion(0),
         reason: 'tar ${args.join(' ')} should complete normally');
 
