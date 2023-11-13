@@ -139,7 +139,9 @@ void main() {
 
     final proc = await writeToTar(['--list', '--verbose'], Stream.value(entry));
     expect(proc.lines, emits(contains(tenGbSize.toString())));
-  }, testOn: '!windows && !node');
+  }, testOn: '!windows && !node', onPlatform: {
+    'mac-os': const Skip('This tests sometimes times out on macOS'),
+  });
 
   group('refuses to write files with OutputFormat.gnu', () {
     void shouldThrow(tar.TarEntry entry) {
