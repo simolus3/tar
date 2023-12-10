@@ -972,6 +972,18 @@ void main() {
     });
   });
 
+  test('throws for invalid utf8 in pax key', () async {
+    final reader =
+        TarReader(fs.file('reference/bad/invalid_pax_header.tar').openRead());
+    expect(reader.moveNext(), throwsA(isA<TarException>()));
+  });
+
+  test('throws for zero-length pax data', () async {
+    final reader =
+        TarReader(fs.file('reference/bad/invalid_pax_len.tar').openRead());
+    expect(reader.moveNext(), throwsA(isA<TarException>()));
+  });
+
   group('PAX headers', () {
     test('locals overwrite globals', () {
       final header = PaxHeaders()

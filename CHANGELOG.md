@@ -1,3 +1,9 @@
+## 1.0.3
+
+- Fix the reader throwing a `FormatException` (instead of a `TarException`)
+  when reading tar files with invalid UTF bytes in their PAX headers.
+- Fix a range error for invalid zero-length PAX entries.
+
 ## 1.0.2
 
 - Fix a few typos in documentation comments.

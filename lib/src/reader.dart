@@ -730,6 +730,18 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
     Never error() => throw TarException.header('Invalid PAX record');
 
+    String decodeString(
+        List<int> data, int start, int end, bool allowMalformed) {
+      assert(start < data.length && end <= data.length && start < end);
+      final decoder = allowMalformed ? unsafeUtf8Decoder : utf8.decoder;
+
+      try {
+        return decoder.convert(data, start, end);
+      } on FormatException {
+        error();
+      }
+    }
+
     while (offset < data.length) {
       // At the start of an entry, expect its length which is terminated by a
       // space char.
@@ -763,13 +775,14 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
         error();
       }
 
-      // Read the key
+      // Read the key, and ensure there is enough space for the value and the
+      // trailing newline.
       final nextEquals = data.indexOf($equal, offset);
-      if (nextEquals == -1 || nextEquals >= endOfEntry) {
+      if (nextEquals == -1 || nextEquals >= endOfEntry - 1) {
         error();
       }
 
-      final key = utf8.decoder.convert(data, offset, nextEquals);
+      final key = decodeString(data, offset, nextEquals, false);
       // Skip over the equals sign
       offset = nextEquals + 1;
 
@@ -783,7 +796,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
       // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
       // GNU.sparse.offset and GNU.sparse.numbytes headers.
       if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
-        final value = utf8.decoder.convert(data, offset, endOfValue);
+        final value = decodeString(data, offset, endOfValue, false);
 
         if (!_isValidPaxRecord(key, value) ||
             (sparseMap.length.isEven && key != paxGNUSparseOffset) ||
@@ -796,7 +809,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
       } else if (!ignoreUnknown || supportedPaxHeaders.contains(key)) {
         // Ignore unrecognized headers to avoid unbounded growth of the global
         // header map.
-        final value = unsafeUtf8Decoder.convert(data, offset, endOfValue);
+        final value = decodeString(data, offset, endOfValue, true);
 
         if (!_isValidPaxRecord(key, value)) {
           error();
