@@ -187,4 +187,4 @@ const nameSize = 100;
 const prefixSize = 155;
 
 /// A full TAR block of zeros.
-final zeroBlock = Uint8List(blockSize);
+final zeroBlock = Uint8List(blockSize).asUnmodifiableView();

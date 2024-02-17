@@ -1,3 +1,8 @@
+## 1.0.4
+
+- Migrate away from `UnmodifiableUint8ListView` which is deprecated in Dart
+  3.4.
+
 ## 1.0.3
 
 - Fix the reader throwing a `FormatException` (instead of a `TarException`)
