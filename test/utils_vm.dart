@@ -1,6 +1,6 @@
-import 'package:file/file.dart';
 import 'package:file/local.dart';
 
-FileSystem get fs {
-  return const LocalFileSystem();
+Stream<List<int>> openRead(String path) {
+  const fs = LocalFileSystem();
+  return fs.file(path).openRead();
 }

@@ -25,7 +25,7 @@ void main() {
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
   test('can skip tar files', () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
 
     expect(await reader.moveNext(), isTrue);
@@ -49,7 +49,7 @@ void main() {
   });
 
   test("can't use moveNext() while a stream is active", () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
 
     expect(await reader.moveNext(), isTrue);
@@ -60,7 +60,7 @@ void main() {
   });
 
   test("can't use moveNext() after canceling the reader", () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
     await reader.cancel();
 
@@ -68,7 +68,7 @@ void main() {
   });
 
   test("can't read a stream multiple times", () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
     await reader.moveNext();
 
@@ -84,7 +84,7 @@ void main() {
   });
 
   test("can't read a stream while a call to moveNext() is active", () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
     await reader.moveNext();
 
@@ -100,7 +100,7 @@ void main() {
   });
 
   test("can't read the stream of an old tar entry", () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
     await reader.moveNext();
     final oldContents = reader.current.contents;
@@ -117,7 +117,7 @@ void main() {
   });
 
   test('can cancel a stream and then read further entries', () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
     addTearDown(reader.cancel);
 
@@ -131,7 +131,7 @@ void main() {
   });
 
   test('cancelling the reader closes the current subscription', () async {
-    final input = fs.file('reference/posix.tar').openRead();
+    final input = openRead('reference/posix.tar');
     final reader = TarReader(input);
 
     // Skip forward to the first actual file
@@ -181,8 +181,7 @@ void main() {
     test('if the stream emits an error in content', () async {
       // Craft a stream that starts with a valid tar file, but then emits an
       // error in the middle of an entry. First 512 bytes are headers.
-      final iterator =
-          ChunkedStreamReader(fs.file('reference/v7.tar').openRead());
+      final iterator = ChunkedStreamReader(openRead('reference/v7.tar'));
       final controller = StreamController<List<int>>();
       controller.onListen = () async {
         // headers + 3 bytes of content
@@ -266,7 +265,7 @@ void main() {
 
   group('tests from dart-neats PR', () {
     Stream<List<int>> open(String name) {
-      return fs.file('reference/neats_test/$name').openRead();
+      return openRead('reference/neats_test/$name');
     }
 
     final tests = [
@@ -943,8 +942,8 @@ void main() {
   });
 
   test('does not read large headers', () {
-    final reader = TarReader(
-        fs.file('reference/headers/evil_large_header.tar').openRead());
+    final reader =
+        TarReader(openRead('reference/headers/evil_large_header.tar'));
 
     expect(
       reader.moveNext(),
@@ -960,27 +959,24 @@ void main() {
         .having((e) => e.message, 'message', contains('Unexpected end'));
 
     test('at header', () {
-      final reader = TarReader(
-          fs.file('reference/bad/truncated_in_header.tar').openRead());
+      final reader =
+          TarReader(openRead('reference/bad/truncated_in_header.tar'));
       expect(reader.moveNext(), throwsA(expectedException));
     });
 
     test('in content', () {
-      final reader =
-          TarReader(fs.file('reference/bad/truncated_in_body.tar').openRead());
+      final reader = TarReader(openRead('reference/bad/truncated_in_body.tar'));
       expect(reader.moveNext(), throwsA(expectedException));
     });
   });
 
   test('throws for invalid utf8 in pax key', () async {
-    final reader =
-        TarReader(fs.file('reference/bad/invalid_pax_header.tar').openRead());
+    final reader = TarReader(openRead('reference/bad/invalid_pax_header.tar'));
     expect(reader.moveNext(), throwsA(isA<TarException>()));
   });
 
   test('throws for zero-length pax data', () async {
-    final reader =
-        TarReader(fs.file('reference/bad/invalid_pax_len.tar').openRead());
+    final reader = TarReader(openRead('reference/bad/invalid_pax_len.tar'));
     expect(reader.moveNext(), throwsA(isA<TarException>()));
   });
 
@@ -1046,7 +1042,7 @@ void main() {
 Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
   final entries = <String, Uint8List>{};
 
-  await TarReader.forEach(fs.file(file).openRead(), (entry) async {
+  await TarReader.forEach(openRead(file), (entry) async {
     entries[entry.name] = await entry.contents.readFully();
   });
 
@@ -1062,7 +1058,7 @@ Future<void> _testWith(String file, {bool ignoreLongFileName = false}) async {
 }
 
 Future<void> _testLargeFile(String file) async {
-  final reader = TarReader(fs.file(file).openRead());
+  final reader = TarReader(openRead(file));
   await reader.moveNext();
 
   expect(reader.current.size, 9663676416);
