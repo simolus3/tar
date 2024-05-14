@@ -111,8 +111,8 @@ void main() {
   String path(String fileName) => '$baseDirectory/$fileName';
 
   setUpAll(() async {
-    baseDirectory = Directory.systemTemp.path +
-        '/tar_test/${DateTime.now().millisecondsSinceEpoch}';
+    baseDirectory =
+        '${Directory.systemTemp.path}/tar_test/${DateTime.now().millisecondsSinceEpoch}';
     await Directory(baseDirectory).create(recursive: true);
 
     for (final entry in testFiles.entries) {

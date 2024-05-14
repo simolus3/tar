@@ -144,27 +144,6 @@ const supportedPaxHeaders = {
   paxGNUSparseRealSize
 };
 
-/// User ID bit
-const c_ISUID = 2048;
-
-/// Group ID bit
-const c_ISGID = 1024;
-
-/// Sticky bit
-const c_ISVTX = 512;
-
-/// Constants to determine file modes.
-const modeType = 2401763328;
-const modeSymLink = 134217728;
-const modeDevice = 67108864;
-const modeCharDevice = 2097152;
-const modeNamedPipe = 33554432;
-const modeSocket = 1677216;
-const modeSetUid = 8388608;
-const modeSetGid = 4194304;
-const modeSticky = 1048576;
-const modeDirectory = 2147483648;
-
 /// The offset of the checksum in the header
 const checksumOffset = 148;
 const checksumLength = 8;

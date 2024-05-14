@@ -12,7 +12,7 @@ void main() {
   test('emits long file names that are understood by 7zip', () async {
     final name = 'name' * 40;
     final entry = TarEntry.data(TarHeader(name: name), []);
-    final file = File(Directory.systemTemp.path + '\\tar_test.tar');
+    final file = File('${Directory.systemTemp.path}\\tar_test.tar');
     addTearDown(file.delete);
 
     await Stream<TarEntry>.value(entry)

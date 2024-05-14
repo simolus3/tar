@@ -10,7 +10,7 @@ import 'package:meta/meta.dart';
 /// to API misuse.
 final class TarException extends FormatException {
   @internal
-  TarException(String message) : super(message);
+  TarException(super.message);
 
   @internal
   factory TarException.header(String message) {

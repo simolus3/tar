@@ -1,3 +1,8 @@
+## 1.0.5
+
+- Migrate to recommended lints from `package:lints`.
+- Add tags to pubspec.
+
 ## 1.0.4
 
 - Migrate away from `UnmodifiableUint8ListView` which is deprecated in Dart

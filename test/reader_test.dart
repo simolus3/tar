@@ -149,7 +149,7 @@ void main() {
   });
 
   group('the reader closes itself', () {
-    test("at the end of a file", () async {
+    test('at the end of a file', () async {
       // two zero blocks terminate a tar file
       final zeroBlock = Uint8List(512);
       final controller = StreamController<List<int>>();
@@ -997,8 +997,8 @@ void main() {
       final tests = [
         ['6 k=v\n\n', 'k', 'v', true],
         ['19 path=/etc/hosts\n', 'path', '/etc/hosts', true],
-        ['210 path=' + longName + '\nabc', 'path', longName, true],
-        ['110 path=' + mediumName + '\n', 'path', mediumName, true],
+        ['210 path=$longName\nabc', 'path', longName, true],
+        ['110 path=$mediumName\n', 'path', mediumName, true],
         ['9 foo=ba\n', 'foo', 'ba', true],
         ['11 foo=bar\n\x00', 'foo', 'bar', true],
         ['18 foo=b=\nar=\n==\x00\n', 'foo', 'b=\nar=\n==\x00', true],
