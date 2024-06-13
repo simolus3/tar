@@ -145,14 +145,14 @@ sealed class TarHeader {
     }
   }
 
-  /// Creates a tar header from the individual field.
+  /// Creates a tar header from the individual fields.
   factory TarHeader({
     required String name,
+    required int mode,
     TarFormat? format,
     TypeFlag? typeFlag,
     DateTime? modified,
     String? linkName,
-    int mode = 0,
     int size = -1,
     String? userName,
     int userId = 0,

@@ -616,6 +616,7 @@ void main() {
             modified: millisecondsSinceEpoch(1597756829000),
             typeFlag: TypeFlag.symlink,
             format: TarFormat.gnu,
+            mode: 0,
           )
         ],
       },
@@ -682,6 +683,7 @@ void main() {
             modified: millisecondsSinceEpoch(0),
             typeFlag: TypeFlag.symlink,
             format: TarFormat.pax,
+            mode: 0,
           )
         ]
       },
@@ -798,6 +800,7 @@ void main() {
         'headers': [
           TarHeader(
             name: 'nil-sparse-data',
+            mode: 0,
             typeFlag: TypeFlag.gnuSparse,
             userId: 1000,
             groupId: 1000,
@@ -813,6 +816,7 @@ void main() {
         'headers': [
           TarHeader(
             name: 'nil-sparse-hole',
+            mode: 0,
             typeFlag: TypeFlag.gnuSparse,
             size: 1000,
             userId: 1000,
@@ -828,6 +832,7 @@ void main() {
         'headers': [
           TarHeader(
             name: 'sparse',
+            mode: 0,
             typeFlag: TypeFlag.reg,
             size: 1000,
             userId: 1000,
@@ -843,6 +848,7 @@ void main() {
         'headers': [
           TarHeader(
             name: 'sparse.txt',
+            mode: 0,
             typeFlag: TypeFlag.reg,
             size: 1000,
             userId: 1000,
@@ -857,6 +863,7 @@ void main() {
         'headers': [
           TarHeader(
             typeFlag: TypeFlag.dir,
+            mode: 0,
             size: 0,
             name: '987654321/' * 30,
             modified: millisecondsSinceEpoch(0),

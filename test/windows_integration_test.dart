@@ -11,7 +11,7 @@ import 'system_tar.dart';
 void main() {
   test('emits long file names that are understood by 7zip', () async {
     final name = 'name' * 40;
-    final entry = TarEntry.data(TarHeader(name: name), []);
+    final entry = TarEntry.data(TarHeader(name: name, mode: 0), []);
     final file = File('${Directory.systemTemp.path}\\tar_test.tar');
     addTearDown(file.delete);
 

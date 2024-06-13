@@ -172,6 +172,7 @@ void main() {
           tar.TarHeader(
             name: 'file.txt',
             userName: 'this name is longer than 32 chars, which is not allowed',
+            mode: 0,
           ),
           [],
         ),

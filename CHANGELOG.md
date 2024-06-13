@@ -1,3 +1,10 @@
+## 2.0.0
+
+- Require the `mode` parameter when creating `TarHeader`s. Previously the field
+  had an implicit default value of `0`, which made it easy to inadvertently
+  create archives with entries that are hard to delete when extracted with
+  other tar programs.
+
 ## 1.0.5
 
 - Migrate to recommended lints from `package:lints`.
