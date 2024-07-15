@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ci-improvements ]
   pull_request:
   schedule:
     # Make sure everything is still working by running the CI weekly.
@@ -20,13 +20,31 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ matrix.dart-sdk }}
-      - uses: actions/cache@v4
+      - name: "Setup local pub cache folder"
+        # Make pub cache folder consistent across OSes, so that we can share the cache.
+        run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
+        shell: bash
+      # We need to update the cache whenever the pubspec.lock changes, as that
+      # indicates a changed dependency after `pub upgrade`. However, we can't
+      # include the pubspec.lock in the cache key as it's not part of the repository.
+      # So, we explicitly restore from and update to the cache as needed.
+      - uses: actions/cache/restore@v4
+        id: restore
         with:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-tool-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys:
+            dart-deps-${{ matrix.dart-sdk }}
+            dart-deps-
+          enableCrossOsArchive: true
 
+      - name: "Hash pubspec lockfiles before pub upgrade"
+        id: deps-before
+        run: |
+          echo "lockfiles=${{ hashFiles('**/pubspec.lock') }}" >> $GITHUB_OUTPUT
+        shell: bash
       - name: "Install dependencies"
         run: dart pub upgrade
 
@@ -35,6 +53,16 @@ jobs:
 
       - name: "Analyze project"
         run: dart analyze --fatal-infos
+
+      - name: "Update cache due to changed pubspec.lock"
+        if: ${{ hashFiles('**/pubspec.lock') != steps.deps-before.outputs.lockfiles || !steps.restore.outputs.cache-hit }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
+          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          enableCrossOsArchive: true
 
   test:
     strategy:
@@ -46,17 +74,27 @@ jobs:
     needs: analyze
 
     steps:
+      - run: git config --global core.autocrlf false
+        if: runner.os == 'Windows'
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ matrix.dart-sdk }}
-      - uses: actions/cache@v4
+      - name: "Setup local pub cache folder"
+        run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
+        shell: bash
+      - uses: actions/cache/restore@v4
         with:
-          path: ${{ env.PUB_CACHE }}
-          key: dart-tool-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
+          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          # Should be created by analyze run
+          fail-on-cache-miss: true
+          enableCrossOsArchive: true
 
       - name: "Get dependencies"
-        run: dart pub get
+        run: dart pub get --offline
 
       - name: "Download 7za"
         run: dart run tool/download_7za.dart
