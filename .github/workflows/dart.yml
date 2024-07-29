@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main, ci-improvements ]
+    branches: [ main ]
   pull_request:
   schedule:
     # Make sure everything is still working by running the CI weekly.
@@ -14,10 +14,15 @@ jobs:
       matrix:
         dart-sdk: [stable, beta, dev]
     runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.output.outputs.stable }}
+      beta: ${{ steps.output.outputs.beta }}
+      dev: ${{ steps.output.outputs.dev }}
 
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
+        id: dart
         with:
           sdk: ${{ matrix.dart-sdk }}
       - name: "Setup local pub cache folder"
@@ -34,9 +39,9 @@ jobs:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
           restore-keys:
-            dart-deps-${{ matrix.dart-sdk }}
+            dart-deps-${{ steps.dart.outputs.dart-version }}
             dart-deps-
           enableCrossOsArchive: true
 
@@ -61,14 +66,21 @@ jobs:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
           enableCrossOsArchive: true
+
+      # This allows the test matrix to depend on a matching output from this matrix invocation, see
+      # https://github.com/orgs/community/discussions/26639#discussioncomment-3949595
+      - name: Save Dart version for matching test run
+        id: output
+        run: |
+          echo "${{ matrix.dart-sdk }}=${{ steps.dart.outputs.dart-version }}" >> $GITHUB_OUTPUT
 
   test:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        dart-sdk: [stable, beta, dev]
+        dart-sdk: ${{ needs.analyze.outputs.* }}
     runs-on: ${{ matrix.os }}
     # analyze creates the cache, avoid downloading dependencies again here
     needs: analyze
