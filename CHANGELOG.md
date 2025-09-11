@@ -1,3 +1,8 @@
+## 2.0.1
+
+- Use extension type to represent `MaybeTarFormat` and `TarFormat`.
+- Update to version `6.0.0` of `package:lints`.
+
 ## 2.0.0
 
 - Require the `mode` parameter when creating `TarHeader`s. Previously the field

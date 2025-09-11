@@ -1,38 +1,23 @@
 /// Holds the possible TAR formats that a file could take.
 ///
-/// This library supports the V7, USTAR, PAX, GNU, and STAR formats. The
-/// [MaybeTarFormat] class generally describes any combination of those formats
+/// This package supports the V7, USTAR, PAX, GNU, and STAR formats. The
+/// [TarFormat] class generally describes any combination of those formats
 /// and represents that we don't know the exact format yet. As soon as we do
 /// know, the [TarFormat] enum represents the exact format of a header.
-sealed class MaybeTarFormat {
-  /// The TAR formats are encoded in powers of two in [_value], such that we
-  /// can refine our guess via bit operations as we discover more information
-  /// about the TAR file.
-  /// A value of 0 means that the format is invalid.
-  int get _value;
-
-  factory MaybeTarFormat._(int value) {
-    return switch (value) {
-      1 => TarFormat.v7,
-      2 => TarFormat.ustar,
-      4 => TarFormat.pax,
-      8 => TarFormat.gnu,
-      16 => TarFormat.star,
-      final other => _MaybeTarFormat(other),
-    };
-  }
-
-  /// Returns a new [MaybeTarFormat] that signifies that it can be either
-  /// `this` or [other]'s format.
+extension type const MaybeTarFormat._(int _representation) {
+  /// Returns a new [TarFormat] that signifies that it can be either `this` or
+  /// or [other]'s format.
   ///
   /// **Example:**
   /// ```dart
-  /// TarFormat format = TarFormat.ustar | TarFormat.pax;
+  /// MaybeTarFormat format = TarFormat.ustar | TarFormat.pax;
   /// ```
   ///
   /// The above code would signify that we have limited `format` to either
   /// the USTAR or PAX format, but need further information to refine the guess.
-  MaybeTarFormat operator |(TarFormat other);
+  MaybeTarFormat operator |(TarFormat other) {
+    return MaybeTarFormat._(_representation | other._representation);
+  }
 
   /// Returns if [other] is a possible resolution of `this`.
   ///
@@ -40,7 +25,13 @@ sealed class MaybeTarFormat {
   /// enough information to determine if it is [TarFormat.ustar] or
   /// [TarFormat.pax], so either of them could be possible resolutions of
   /// `this`.
-  bool has(MaybeTarFormat other);
+  bool has(MaybeTarFormat other) {
+    if (isKnownFormat) {
+      return this == other;
+    } else {
+      return mayOnlyBe(other).valid;
+    }
+  }
 
   /// Returns a new [TarFormat] that signifies that it can only be [other]'s
   /// format.
@@ -57,20 +48,51 @@ sealed class MaybeTarFormat {
   ///
   /// If `has(other) == false`, [mayOnlyBe] will result in an unknown
   /// [TarFormat].
-  MaybeTarFormat mayOnlyBe(MaybeTarFormat other);
+  MaybeTarFormat mayOnlyBe(MaybeTarFormat other) {
+    return MaybeTarFormat._(_representation & other._representation);
+  }
 
   /// Returns if this format might be valid.
   ///
   /// This returns true as well even if we have yet to fully determine what the
   /// format is.
-  bool get valid;
+  bool get valid => _representation != 0;
+
+  /// Whether this represents a single known format (as a value listed in
+  /// [TarFormat]).
+  bool get isKnownFormat =>
+      valid && _representation == 1 << (_representation.bitLength - 1);
+
+  String get description {
+    if (!valid) {
+      return 'Invalid';
+    }
+
+    final buffer = StringBuffer();
+
+    var repr = _representation;
+    for (final name in TarFormat._names) {
+      if (repr.isOdd) {
+        if (buffer.isNotEmpty) buffer.write(' or ');
+        buffer.write(name);
+      }
+
+      repr >>>= 1;
+    }
+
+    return buffer.toString();
+  }
 }
 
 /// A fully resolved tar format.
 ///
-/// When we know that a tar entry must use a specific format, this is represented
-/// with a value from this [TarFormat] enum.
-enum TarFormat implements MaybeTarFormat {
+/// When we know that a tar entry must use a specific format, this is
+/// represented with a value from this [TarFormat].
+extension type const TarFormat._(MaybeTarFormat _inner)
+    implements MaybeTarFormat {
+  // Names of known formats in order of their bit representation.
+  static const _names = ['V7', 'USTAR', 'PAX', 'GNU', 'STAR'];
+
   /// Original Unix Version 7 (V7) AT&T tar tool prior to standardization.
   ///
   /// The structure of the V7 Header consists of the following:
@@ -95,7 +117,7 @@ enum TarFormat implements MaybeTarFormat {
   /// https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&format=html
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
-  v7(1, 'V7'),
+  static const v7 = TarFormat._(MaybeTarFormat._(1));
 
   /// USTAR (Unix Standard TAR) header format defined in POSIX.1-1988.
   ///
@@ -141,7 +163,7 @@ enum TarFormat implements MaybeTarFormat {
   /// https://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5&format=html
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   ///	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
-  ustar(2, 'USTAR'),
+  static const ustar = TarFormat._(MaybeTarFormat._(2));
 
   /// PAX header format defined in POSIX.1-2001.
   ///
@@ -159,7 +181,7 @@ enum TarFormat implements MaybeTarFormat {
   /// https://www.gnu.org/software/tar/manual/html_chapter/tar_15.html#SEC188
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
   ///	http://pubs.opengroup.org/onlinepubs/009695399/utilities/pax.html
-  pax(4, 'PAX'),
+  static const pax = TarFormat._(MaybeTarFormat._(4));
 
   /// GNU header format.
   ///
@@ -209,7 +231,7 @@ enum TarFormat implements MaybeTarFormat {
   ///
   /// Reference:
   ///	https://www.gnu.org/software/tar/manual/html_node/Standard.html
-  gnu(8, 'GNU'),
+  static const gnu = TarFormat._(MaybeTarFormat._(8));
 
   /// Schily's TAR format, which is incompatible with USTAR.
   /// This does not cover STAR extensions to the PAX format; these fall under
@@ -247,76 +269,5 @@ enum TarFormat implements MaybeTarFormat {
   ///
   /// Reference:
   /// http://cdrtools.sourceforge.net/private/man/star/star.4.html
-  star(16, 'STAR'),
-  ;
-
-  @override
-  final int _value;
-
-  final String _name;
-
-  const TarFormat(this._value, this._name);
-
-  @override
-  bool get valid => true;
-
-  @override
-  MaybeTarFormat operator |(TarFormat other) {
-    return other == this ? this : _MaybeTarFormat(_value | other._value);
-  }
-
-  @override
-  bool has(MaybeTarFormat other) {
-    return other == this;
-  }
-
-  @override
-  MaybeTarFormat mayOnlyBe(MaybeTarFormat other) {
-    return MaybeTarFormat._(_value & other._value);
-  }
-
-  @override
-  String toString() => _name;
-}
-
-final class _MaybeTarFormat implements MaybeTarFormat {
-  // Note: We never represent a single tar format in a _MaybeTarFormat, these
-  // are represented in the TarFormat enum.
-  @override
-  final int _value;
-
-  const _MaybeTarFormat(this._value);
-
-  @override
-  int get hashCode => _value;
-
-  @override
-  bool operator ==(Object other) {
-    if (other is! TarFormat) return false;
-
-    return _value == other._value;
-  }
-
-  @override
-  String toString() {
-    if (!valid) return 'Invalid';
-
-    return TarFormat.values.where(has).map((e) => e._name).join(' or ');
-  }
-
-  @override
-  bool has(MaybeTarFormat other) => _value & other._value != 0;
-
-  @override
-  bool get valid => _value != 0;
-
-  @override
-  MaybeTarFormat mayOnlyBe(MaybeTarFormat other) {
-    return MaybeTarFormat._(_value & other._value);
-  }
-
-  @override
-  MaybeTarFormat operator |(TarFormat other) {
-    return MaybeTarFormat._(_value | other._value);
-  }
+  static const star = TarFormat._(MaybeTarFormat._(16));
 }

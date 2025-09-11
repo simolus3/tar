@@ -35,7 +35,7 @@ void main() {
 
 TypeMatcher<MaybeTarFormat> _isFormat(String representation) {
   return isA<MaybeTarFormat>()
-      .having((e) => e.toString(), 'toString()', representation);
+      .having((e) => e.description, 'description', representation);
 }
 
 TypeMatcher<MaybeTarFormat> get _isInvalid {
