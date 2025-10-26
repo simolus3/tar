@@ -961,6 +961,19 @@ void main() {
     );
   });
 
+  test('pax precedence', () async {
+    // Edera discovered a bug in some Rust tar libraries where it was possible
+    // to make a tar in a tar get read as nested entries: https://edera.dev/stories/tarmageddon
+    // package:tar never had that issue, but copying a test doesn't hurt.
+    final reader =
+        TarReader(openRead('reference/bad/pax-header-precedence.tar'));
+
+    for (final expectedName in ['normal.txt', 'blob.bin', 'marker.txt']) {
+      expect(await reader.moveNext(), isTrue);
+      expect(reader.current.name, expectedName);
+    }
+  });
+
   group('throws on unexpected EoF', () {
     final expectedException = isA<TarException>()
         .having((e) => e.message, 'message', contains('Unexpected end'));
