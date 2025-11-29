@@ -9,9 +9,11 @@ import 'package:meta/meta.dart';
 /// exceptions are either a bug in this package or errors thrown as a response
 /// to API misuse.
 final class TarException extends FormatException {
+  /// Creates a tar exception from the error message.
   @internal
   TarException(super.message);
 
+  /// Crates a tar exception describing a format issue in a tar header.
   @internal
   factory TarException.header(String message) {
     return TarException('Invalid header: $message');

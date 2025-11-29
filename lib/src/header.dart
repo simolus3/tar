@@ -64,8 +64,14 @@ enum TypeFlag {
 
   /// Used by the GNU format for a meta file to store the path or link name for
   /// the next file.
-  /// This package transparently handles these types.
+  /// This package transparently handles this type, it is not visible from
+  /// reported tar entries.
   gnuLongName,
+
+  /// Used by the GNU format for a meta file to store a long link name.
+  ///
+  /// This package transparently handles this type, it is not visible from
+  /// reported tar entries.
   gnuLongLink,
 
   /// Vendor specific typeflag, as defined in POSIX.1-1998. Seen as outdated but

@@ -4,3 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  - package-ecosystem: "pub"
+    versioning-strategy: "increase-if-necessary"
+    directory: "/"
+    schedule:
+      interval: "weekly"

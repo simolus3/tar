@@ -1,3 +1,4 @@
+// ignore_for_file: public_member_api_docs
 @internal
 library;
 
@@ -136,7 +137,7 @@ List<SparseEntry> invertSparseEntries(List<SparseEntry> source, int size) {
   final result = <SparseEntry>[];
   var previous = SparseEntry(0, 0);
   for (final current in source) {
-    /// Skip empty fragments
+    // Skip empty fragments
     if (current.length == 0) continue;
 
     final newLength = current.offset - previous.offset;

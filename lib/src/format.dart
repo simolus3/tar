@@ -63,6 +63,7 @@ extension type const MaybeTarFormat._(int _representation) {
   bool get isKnownFormat =>
       valid && _representation == 1 << (_representation.bitLength - 1);
 
+  /// A string representation of possible format names.
   String get description {
     if (!valid) {
       return 'Invalid';

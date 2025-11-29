@@ -1,3 +1,7 @@
+## 2.0.2
+
+- Add documentation comments to all public members.
+
 ## 2.0.1
 
 - Use extension type to represent `MaybeTarFormat` and `TarFormat`.
