@@ -28,7 +28,7 @@ Stream<TarEntry> findEntries() async* {
     final name = p.relative(entry.path, from: root.path);
 
     // Let's also ignore hidden directories and files.
-    if (name.startsWith('.')) continue;
+    if (name.split(p.separator).any((part) => part.startsWith('.'))) continue;
 
     // Finally, we should ignore the output file since weird things may happen
     // otherwise.
