@@ -8,6 +8,8 @@ on:
     # Make sure everything is still working by running the CI weekly.
     - cron: "0 5 * * 1"
 
+permissions: {}
+
 jobs:
   analyze:
     strategy:
@@ -21,10 +23,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@v1
         id: dart
         with:
           sdk: ${{ matrix.dart-sdk }}
+
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+
       - name: "Setup local pub cache folder"
         # Make pub cache folder consistent across OSes, so that we can share the cache.
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
@@ -74,7 +82,9 @@ jobs:
       - name: Save Dart version for matching test run
         id: output
         run: |
-          echo "${{ matrix.dart-sdk }}=${{ steps.dart.outputs.dart-version }}" >> $GITHUB_OUTPUT
+          echo "${{ matrix.dart-sdk }}=${STEPS_DART_OUTPUTS_DART_VERSION}" >> $GITHUB_OUTPUT
+        env:
+          STEPS_DART_OUTPUTS_DART_VERSION: ${{ steps.dart.outputs.dart-version }}
 
   test:
     strategy:
@@ -89,6 +99,8 @@ jobs:
       - run: git config --global core.autocrlf false
         if: runner.os == 'Windows'
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ matrix.dart-sdk }}
