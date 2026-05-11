@@ -11,6 +11,17 @@ on:
 permissions: {}
 
 jobs:
+  zizmor:
+    permissions:
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
+
   analyze:
     strategy:
       matrix:
@@ -29,9 +40,6 @@ jobs:
         id: dart
         with:
           sdk: ${{ matrix.dart-sdk }}
-
-      - name: Run zizmor 🌈
-        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
 
       - name: "Setup local pub cache folder"
         # Make pub cache folder consistent across OSes, so that we can share the cache.
