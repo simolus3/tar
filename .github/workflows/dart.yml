@@ -49,7 +49,7 @@ jobs:
       # indicates a changed dependency after `pub upgrade`. However, we can't
       # include the pubspec.lock in the cache key as it's not part of the repository.
       # So, we explicitly restore from and update to the cache as needed.
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6.1.0
         id: restore
         with:
           path: |
@@ -77,7 +77,7 @@ jobs:
 
       - name: "Update cache due to changed pubspec.lock"
         if: ${{ hashFiles('**/pubspec.lock') != steps.deps-before.outputs.lockfiles || !steps.restore.outputs.cache-hit }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6.1.0
         with:
           path: |
             ${{ env.PUB_CACHE }}
@@ -115,7 +115,7 @@ jobs:
       - name: "Setup local pub cache folder"
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
         shell: bash
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6.1.0
         with:
           path: |
             ${{ env.PUB_CACHE }}
