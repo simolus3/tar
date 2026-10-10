@@ -732,7 +732,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
     String decodeString(
         List<int> data, int start, int end, bool allowMalformed) {
-      assert(start < data.length && end <= data.length && start < end);
+      assert(start <= end && end <= data.length);
       final decoder = allowMalformed ? unsafeUtf8Decoder : utf8.decoder;
 
       try {

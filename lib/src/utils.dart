@@ -176,7 +176,9 @@ DateTime parsePaxTime(String paxTimeString) {
 
   /// Parse the seconds.
   final seconds = int.tryParse(secondsString);
-  if (seconds == null) {
+  if (seconds == null ||
+      seconds < -_maxSecondsSinceEpoch ||
+      seconds > _maxSecondsSinceEpoch) {
     throw TarException.header('Invalid PAX time $paxTimeString detected!');
   }
 
@@ -195,16 +197,29 @@ DateTime parsePaxTime(String paxTimeString) {
   return microsecondsSinceEpoch(microSeconds + seconds * pow(10, 6).toInt());
 }
 
+const _maxSecondsSinceEpoch = 8640000000000;
+
 DateTime secondsSinceEpoch(int timestamp) {
-  return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000, isUtc: true);
+  if (timestamp < -_maxSecondsSinceEpoch || timestamp > _maxSecondsSinceEpoch) {
+    throw TarException.header('Invalid timestamp: $timestamp');
+  }
+  return millisecondsSinceEpoch(timestamp * 1000);
 }
 
 DateTime millisecondsSinceEpoch(int milliseconds) {
-  return DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true);
+  try {
+    return DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true);
+  } on ArgumentError {
+    throw TarException.header('Invalid timestamp: $milliseconds');
+  }
 }
 
 DateTime microsecondsSinceEpoch(int microseconds) {
-  return DateTime.fromMicrosecondsSinceEpoch(microseconds, isUtc: true);
+  try {
+    return DateTime.fromMicrosecondsSinceEpoch(microseconds, isUtc: true);
+  } on ArgumentError {
+    throw TarException.header('Invalid timestamp: $microseconds');
+  }
 }
 
 int numBlocks(int fileSize) {
