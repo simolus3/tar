@@ -1024,6 +1024,7 @@ void main() {
         ['18 foo=b=\nar=\n==\x00\n', 'foo', 'b=\nar=\n==\x00', true],
         ['27 foo=hello9 foo=ba\nworld\n', 'foo', 'hello9 foo=ba\nworld', true],
         ['27 ☺☻☹=日a本b語ç\n', '☺☻☹', '日a本b語ç', true],
+        ['5 k=\n', 'k', '', true],
         ['17 \x00hello=\x00world\n', '', '', false],
         ['1 k=1\n', '', '', false],
         ['6 k~1\n', '', '', false],
@@ -1032,6 +1033,8 @@ void main() {
         ['16 longkeyname=hahaha\n', '', '', false],
         ['3 somelongkey=\n', '', '', false],
         ['50 tooshort=\n', '', '', false],
+        ['4 =\n', '', '', false],
+        ['4 =', '', '', false],
       ];
 
       for (var i = 0; i < tests.length; i++) {

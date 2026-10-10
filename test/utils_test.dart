@@ -176,6 +176,10 @@ void main() {
       '-',
       '+',
       '-1.-1',
+      '8802228199999',
+      '-8802228199999',
+      '9223372036854775807',
+      '-9223372036854775808',
       '99999999999999999999999999999999999999999999999',
       '0.123456789abcdef',
       'foo',
@@ -188,6 +192,14 @@ void main() {
         expect(() => parsePaxTime(invalid), throwsA(isA<TarException>()));
       });
     }
+
+    test('secondsSinceEpoch throws TarException when out of DateTime range',
+        () {
+      expect(
+          () => secondsSinceEpoch(8802228199999), throwsA(isA<TarException>()));
+      expect(() => secondsSinceEpoch(-9223372036854775808),
+          throwsA(isA<TarException>()));
+    });
   });
 
   group('BlockReader', () {
