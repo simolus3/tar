@@ -1,3 +1,7 @@
+## 2.0.3 (unreleased)
+
+- Fix empty pax keys or values throwing.
+
 ## 2.0.2
 
 - Add documentation comments to all public members.
