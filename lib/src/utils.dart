@@ -179,6 +179,7 @@ DateTime parsePaxTime(String paxTimeString) {
   if (seconds == null) {
     throw TarException.header('Invalid PAX time $paxTimeString detected!');
   }
+  _checkTimestamp(seconds, _maxSecondsSinceEpoch);
 
   if (microSecondsString.replaceAll(RegExp('[0-9]'), '') != '') {
     throw TarException.header(
@@ -195,15 +196,29 @@ DateTime parsePaxTime(String paxTimeString) {
   return microsecondsSinceEpoch(microSeconds + seconds * pow(10, 6).toInt());
 }
 
+// https://github.com/dart-lang/sdk/blob/b6d773b62e2e5c823f5e8caade4ce7df152e4787/sdk/lib/core/date_time.dart#L398-L400
+const _maxSecondsSinceEpoch = 8640000000000;
+const _maxMillisecondsSinceEpoch = _maxSecondsSinceEpoch * 1000;
+const _maxMicrosecondsSinceEpoch = _maxMillisecondsSinceEpoch * 1000;
+
+void _checkTimestamp(int value, int bound) {
+  if (value < -bound || value > bound) {
+    throw TarException.header('Invalid timestamp: $value');
+  }
+}
+
 DateTime secondsSinceEpoch(int timestamp) {
-  return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000, isUtc: true);
+  _checkTimestamp(timestamp, _maxSecondsSinceEpoch);
+  return millisecondsSinceEpoch(timestamp * 1000);
 }
 
 DateTime millisecondsSinceEpoch(int milliseconds) {
+  _checkTimestamp(milliseconds, _maxMillisecondsSinceEpoch);
   return DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true);
 }
 
 DateTime microsecondsSinceEpoch(int microseconds) {
+  _checkTimestamp(microseconds, _maxMicrosecondsSinceEpoch);
   return DateTime.fromMicrosecondsSinceEpoch(microseconds, isUtc: true);
 }
 

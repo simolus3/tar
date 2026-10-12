@@ -162,6 +162,8 @@ void main() {
       '-1.01': -1010000,
       '-2.99': -2990000,
       '-5.98': -5980000,
+      '8640000000000': 8640000000000000000,
+      '-8640000000000': -8640000000000000000,
     };
 
     validTimes.forEach((str, micros) {
@@ -181,6 +183,11 @@ void main() {
       'foo',
       '𝟵𝟴𝟳𝟲𝟱.𝟰𝟯𝟮𝟭𝟬', // Unicode numbers (U+1D7EC to U+1D7F5)
       '98765﹒43210', // Unicode period (U+FE52);
+      // Out of range
+      '8640000000001',
+      '-8640000000001',
+      '9223372036854775807',
+      '-9223372036854775808',
     };
 
     for (final invalid in invalidTimes) {
@@ -188,6 +195,14 @@ void main() {
         expect(() => parsePaxTime(invalid), throwsA(isA<TarException>()));
       });
     }
+
+    test('secondsSinceEpoch throws TarException when out of DateTime range',
+        () {
+      expect(
+          () => secondsSinceEpoch(8802228199999), throwsA(isA<TarException>()));
+      expect(() => secondsSinceEpoch(-9223372036854775808),
+          throwsA(isA<TarException>()));
+    });
   });
 
   group('BlockReader', () {

@@ -1,6 +1,7 @@
-## 2.0.3 (unreleased)
+## 2.0.3
 
 - Fix empty pax keys or values throwing.
+- Reject datetime values that can't be represented as a Dart `DateTime` instance.
 
 ## 2.0.2
 
