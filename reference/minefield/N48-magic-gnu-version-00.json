@@ -1,0 +1,8 @@
+{
+ "id": "N48",
+ "verdict": "reject",
+ "description": "A prefix in a header with the magic `\"ustar \"` and the version `\"00\"`: part of the name, or not?",
+ "features": [
+  "magic.other"
+ ]
+}

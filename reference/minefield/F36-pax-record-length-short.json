@@ -1,0 +1,9 @@
+{
+ "id": "F36",
+ "verdict": "reject",
+ "description": "A pax record whose length is one byte short, so that it ends just before its newline.",
+ "features": [
+  "pax.invalid-length",
+  "pax.no-newline"
+ ]
+}

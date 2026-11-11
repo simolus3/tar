@@ -1,0 +1,19 @@
+{
+ "id": "N04",
+ "verdict": "accept",
+ "description": "A long name split between the ustar prefix and name fields.",
+ "features": [],
+ "tree": [
+  {
+   "path": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+   "kind": "directory"
+  },
+  {
+   "path": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp/file",
+   "kind": "file",
+   "executable": false,
+   "size": 9,
+   "sha256": "7dd9c6f93ad04e58505b507580eaf064f0240ce4567f9ca5e741ec09a5cc08be"
+  }
+ ]
+}

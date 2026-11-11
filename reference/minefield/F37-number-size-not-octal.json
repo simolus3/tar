@@ -1,0 +1,8 @@
+{
+ "id": "F37",
+ "verdict": "reject",
+ "description": "A size with the digit 9, which is not octal.",
+ "features": [
+  "number.size.invalid-character"
+ ]
+}

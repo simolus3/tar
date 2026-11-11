@@ -1,0 +1,8 @@
+{
+ "id": "N39",
+ "verdict": "reject",
+ "description": "A GNU long name whose size leaves out its NUL, with bytes after it.",
+ "features": [
+  "gnu-long.no-nul"
+ ]
+}

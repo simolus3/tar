@@ -1,0 +1,8 @@
+{
+ "id": "F35",
+ "verdict": "reject",
+ "description": "A pax `size` on a hardlink, which takes the next header for its data.",
+ "features": [
+  "pax.size-on-hardlink"
+ ]
+}

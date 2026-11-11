@@ -1,0 +1,8 @@
+{
+ "id": "K05",
+ "verdict": "reject",
+ "description": "A hardlink whose name ends in a slash: a link, or a directory?",
+ "features": [
+  "name.trailing-slash-on-hardlink"
+ ]
+}

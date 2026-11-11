@@ -1,0 +1,18 @@
+{
+ "id": "F01",
+ "verdict": "tolerate",
+ "description": "Numeric fields padded with spaces rather than zeros, as old tars wrote them.",
+ "features": [
+  "number.mode.leading-space",
+  "number.size.leading-space"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 7,
+   "sha256": "e47fbedb2823cf1ae4d4cdb8273635be2024cb870588e259c9b23d76ae49d484"
+  }
+ ]
+}

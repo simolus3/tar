@@ -1,0 +1,8 @@
+{
+ "id": "F11",
+ "verdict": "reject",
+ "description": "The POSIX magic with a version that is neither `\"00\"` nor NULs.",
+ "features": [
+  "magic.posix-with-odd-version"
+ ]
+}

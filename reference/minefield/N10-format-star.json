@@ -1,0 +1,8 @@
+{
+ "id": "N10",
+ "verdict": "reject",
+ "description": "A ustar prefix whose end reads as star's times, with star's `tar\\0` at offset 508.",
+ "features": [
+  "format.star"
+ ]
+}

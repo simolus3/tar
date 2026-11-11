@@ -1,0 +1,8 @@
+{
+ "id": "S07",
+ "verdict": "reject",
+ "description": "The same file twice, with different contents: the first copy, or the last?",
+ "features": [
+  "tree.duplicate.file-file"
+ ]
+}

@@ -1,0 +1,8 @@
+{
+ "id": "S10",
+ "verdict": "reject",
+ "description": "A symlink, then a file of the same name: replace the link, or write through it?",
+ "features": [
+  "tree.duplicate.symlink-file"
+ ]
+}

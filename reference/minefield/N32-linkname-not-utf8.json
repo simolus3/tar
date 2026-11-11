@@ -1,0 +1,8 @@
+{
+ "id": "N32",
+ "verdict": "reject",
+ "description": "A symlink whose target in the header is not UTF-8.",
+ "features": [
+  "linkname.not-utf8"
+ ]
+}

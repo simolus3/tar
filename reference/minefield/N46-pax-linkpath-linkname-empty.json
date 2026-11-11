@@ -1,0 +1,13 @@
+{
+ "id": "N46",
+ "verdict": "accept",
+ "description": "A symlink with an empty linkname field and a pax `linkpath`.",
+ "features": [],
+ "tree": [
+  {
+   "path": "l",
+   "kind": "symlink",
+   "target": "target"
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+ "id": "K06",
+ "verdict": "reject",
+ "description": "A symlink `.`: dropped, renamed, or an error?",
+ "features": [
+  "name.dot-on-symlink"
+ ]
+}

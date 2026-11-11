@@ -1,0 +1,23 @@
+{
+ "id": "S02",
+ "verdict": "accept",
+ "description": "The same directory twice, as `tar cf x.tar d d/sub` writes.",
+ "features": [],
+ "tree": [
+  {
+   "path": "d",
+   "kind": "directory"
+  },
+  {
+   "path": "d/sub",
+   "kind": "directory"
+  },
+  {
+   "path": "d/sub/f",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "092fcfbbcfca3b5be7ae1b5e58538e92c35ab273ae13664fed0d67484c8e78a6"
+  }
+ ]
+}

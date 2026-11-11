@@ -1,0 +1,8 @@
+{
+ "id": "S03",
+ "verdict": "reject",
+ "description": "A hardlink to a member that is not in the archive.",
+ "features": [
+  "hardlink.missing-target"
+ ]
+}

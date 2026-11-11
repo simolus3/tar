@@ -1,0 +1,19 @@
+{
+ "id": "N03",
+ "verdict": "accept",
+ "description": "A name over 100 bytes, in a pax `path`.",
+ "features": [],
+ "tree": [
+  {
+   "path": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "kind": "directory"
+  },
+  {
+   "path": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+   "kind": "file",
+   "executable": false,
+   "size": 5,
+   "sha256": "bbdbb75b415ee9a40f0b3796a8b41a0b7723afe5726b870474ad220a4886d06d"
+  }
+ ]
+}

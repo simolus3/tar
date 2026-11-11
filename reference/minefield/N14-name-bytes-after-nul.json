@@ -1,0 +1,8 @@
+{
+ "id": "N14",
+ "verdict": "reject",
+ "description": "Bytes after the NUL that ends a name.",
+ "features": [
+  "name.bytes-after-nul"
+ ]
+}

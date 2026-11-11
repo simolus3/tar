@@ -1,0 +1,21 @@
+{
+ "id": "N45",
+ "verdict": "accept",
+ "description": "A file with a GNU long name and typeflag NUL, whose name field ends in a slash.",
+ "features": [
+  "type.nul"
+ ],
+ "tree": [
+  {
+   "path": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+   "kind": "directory"
+  },
+  {
+   "path": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp/file.py",
+   "kind": "file",
+   "executable": false,
+   "size": 8,
+   "sha256": "d8594fa1268ecabc62af7c9e2449b8c46db0f426cd9aad384c67efe59e582b3e"
+  }
+ ]
+}

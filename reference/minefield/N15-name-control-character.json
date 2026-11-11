@@ -1,0 +1,17 @@
+{
+ "id": "N15",
+ "verdict": "tolerate",
+ "description": "A control character in a name, here a newline, created as it is.",
+ "features": [
+  "name.control-character"
+ ],
+ "tree": [
+  {
+   "path": "a\nb",
+   "kind": "file",
+   "executable": false,
+   "size": 21,
+   "sha256": "93d2f8418e760b244545798b892899921327396ea6913af7482bd1c845b9d2bb"
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+ "id": "N33",
+ "verdict": "reject",
+ "description": "A Solaris extended header, typeflag `X`: a pax header, or a file?",
+ "features": [
+  "type.solaris-extended"
+ ]
+}

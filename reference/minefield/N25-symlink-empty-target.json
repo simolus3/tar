@@ -1,0 +1,8 @@
+{
+ "id": "N25",
+ "verdict": "reject",
+ "description": "A symlink with an empty target.",
+ "features": [
+  "symlink.empty-target"
+ ]
+}

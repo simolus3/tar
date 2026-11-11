@@ -1,0 +1,22 @@
+{
+ "id": "N28",
+ "verdict": "accept",
+ "description": "A hardlink with a long name and a long target, in a pax `path` and `linkpath` respectively.",
+ "features": [],
+ "tree": [
+  {
+   "path": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+   "kind": "file",
+   "executable": false,
+   "size": 7,
+   "sha256": "c97ecfda4d205190b973232dcfdb0c29748521c2534dd866bcc782f30b086738"
+  },
+  {
+   "path": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+   "kind": "file",
+   "executable": false,
+   "size": 7,
+   "sha256": "c97ecfda4d205190b973232dcfdb0c29748521c2534dd866bcc782f30b086738"
+  }
+ ]
+}

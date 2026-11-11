@@ -1,0 +1,15 @@
+{
+ "id": "N35",
+ "verdict": "tolerate",
+ "description": "A relative symlink whose target leads out of the destination.",
+ "features": [
+  "symlink.escapes"
+ ],
+ "tree": [
+  {
+   "path": "link",
+   "kind": "symlink",
+   "target": "../escaped"
+  }
+ ]
+}

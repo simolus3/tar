@@ -1,0 +1,8 @@
+{
+ "id": "F24",
+ "verdict": "reject",
+ "description": "A pax `size` with a leading space, ` 512`, which conversions of strings to numbers skip.",
+ "features": [
+  "pax.invalid-size"
+ ]
+}

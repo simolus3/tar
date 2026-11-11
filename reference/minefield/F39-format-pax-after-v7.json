@@ -1,0 +1,8 @@
+{
+ "id": "F39",
+ "verdict": "reject",
+ "description": "A v7 header first, then a member with a pax header: is the `x` header a header, or a file?",
+ "features": [
+  "format.pax-after-v7"
+ ]
+}

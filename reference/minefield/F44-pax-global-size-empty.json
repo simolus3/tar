@@ -1,0 +1,8 @@
+{
+ "id": "F44",
+ "verdict": "reject",
+ "description": "An empty `size` in a global pax header: does it delete the size of every later member, or set it?",
+ "features": [
+  "pax-global.empty-value.size"
+ ]
+}

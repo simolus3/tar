@@ -1,0 +1,15 @@
+{
+ "id": "N47",
+ "verdict": "accept",
+ "description": "A symlink with a long target, in a GNU long link name.",
+ "features": [
+  "linkname.no-nul"
+ ],
+ "tree": [
+  {
+   "path": "l",
+   "kind": "symlink",
+   "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+  }
+ ]
+}

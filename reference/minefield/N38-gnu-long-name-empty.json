@@ -1,0 +1,8 @@
+{
+ "id": "N38",
+ "verdict": "reject",
+ "description": "An empty GNU long name: the name in the header, or none?",
+ "features": [
+  "gnu-long.empty"
+ ]
+}

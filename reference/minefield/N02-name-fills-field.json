@@ -1,0 +1,15 @@
+{
+ "id": "N02",
+ "verdict": "accept",
+ "description": "A name of exactly 100 bytes, which fills the name field without a NUL.",
+ "features": [],
+ "tree": [
+  {
+   "path": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+   "kind": "file",
+   "executable": false,
+   "size": 5,
+   "sha256": "0e716a5fef4e6dc1bcfff22ad52f73ca4eee3f4ea8292f4a1918daa32592889f"
+  }
+ ]
+}

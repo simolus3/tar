@@ -1,0 +1,8 @@
+{
+ "id": "F19",
+ "verdict": "reject",
+ "description": "A global pax header between an extended header and its member.",
+ "features": [
+  "pax-global.between-extended-and-member"
+ ]
+}

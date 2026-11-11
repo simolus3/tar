@@ -1,0 +1,8 @@
+{
+ "id": "F23",
+ "verdict": "reject",
+ "description": "A pax `size` with a plus sign, `+512`, which conversions of strings to numbers accept.",
+ "features": [
+  "pax.invalid-size"
+ ]
+}

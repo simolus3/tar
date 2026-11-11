@@ -1,0 +1,8 @@
+{
+ "id": "N40",
+ "verdict": "reject",
+ "description": "A global pax header with a `linkpath`.",
+ "features": [
+  "pax-global.linkpath"
+ ]
+}

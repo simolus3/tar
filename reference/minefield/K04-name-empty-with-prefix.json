@@ -1,0 +1,8 @@
+{
+ "id": "K04",
+ "verdict": "reject",
+ "description": "A regular file with an empty name and a prefix: `dir/`, or no name?",
+ "features": [
+  "name.trailing-slash-on-file"
+ ]
+}

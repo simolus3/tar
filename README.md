@@ -212,3 +212,5 @@ used by the pub client.
 
 Big thanks to [Garett Tok Ern Liang](https://github.com/walnutdust) for writing the initial
 Dart tar reader that this library is based on.
+
+This project uses the [Tar file extraction test suite](https://doi.org/10.5281/zenodo.23617964) by Harmen Taeke Stoppels and William Woodruff.

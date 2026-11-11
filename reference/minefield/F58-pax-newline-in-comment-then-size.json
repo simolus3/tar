@@ -1,0 +1,17 @@
+{
+ "id": "F58",
+ "verdict": "accept",
+ "description": "A newline in a pax `comment`, which split on lines leaves a `size` record before the last one.",
+ "features": [
+  "pax.newline-in-value.comment"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 512,
+   "sha256": "917dba8e5120183529f6939caddf79878ed752eaf72b9a195a0450eac5d4de3b"
+  }
+ ]
+}

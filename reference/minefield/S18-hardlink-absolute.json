@@ -1,0 +1,8 @@
+{
+ "id": "S18",
+ "verdict": "reject",
+ "description": "A hardlink to `/etc/passwd`, in an archive with a member `etc/passwd`.",
+ "features": [
+  "hardlink.absolute"
+ ]
+}

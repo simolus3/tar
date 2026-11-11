@@ -1,0 +1,8 @@
+{
+ "id": "S12",
+ "verdict": "reject",
+ "description": "A member under a file.",
+ "features": [
+  "tree.under-file"
+ ]
+}

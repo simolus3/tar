@@ -1,0 +1,8 @@
+{
+ "id": "F03",
+ "verdict": "reject",
+ "description": "An end-of-archive marker of one zero block, not two.",
+ "features": [
+  "end.lone-zero-block"
+ ]
+}

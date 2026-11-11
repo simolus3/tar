@@ -1,0 +1,17 @@
+{
+ "id": "F56",
+ "verdict": "tolerate",
+ "description": "A size of 512 in base-256.",
+ "features": [
+  "number.size.base256"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 512,
+   "sha256": "a0b708e633655e5bdde514831e5ea443671e7e1b5f704613ae051824d0fa50f6"
+  }
+ ]
+}

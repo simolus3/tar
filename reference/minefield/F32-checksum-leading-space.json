@@ -1,0 +1,17 @@
+{
+ "id": "F32",
+ "verdict": "tolerate",
+ "description": "A checksum padded with spaces rather than zeros.",
+ "features": [
+  "number.chksum.leading-space"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 13,
+   "sha256": "184294b2fb6512fb777010e132d602fa64c13999e4d8a5537ed6d039b8eb91ff"
+  }
+ ]
+}

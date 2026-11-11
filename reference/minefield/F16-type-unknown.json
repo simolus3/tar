@@ -1,0 +1,8 @@
+{
+ "id": "F16",
+ "verdict": "reject",
+ "description": "An unknown typeflag with a size: data, or no data?",
+ "features": [
+  "type.unknown-Z"
+ ]
+}

@@ -1,0 +1,8 @@
+{
+ "id": "N23",
+ "verdict": "reject",
+ "description": "A GNU long name, then a pax header, then the member: which of them does the long name apply to?",
+ "features": [
+  "extended.gnu-long-and-pax"
+ ]
+}

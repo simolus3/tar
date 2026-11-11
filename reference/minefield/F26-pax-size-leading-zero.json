@@ -1,0 +1,8 @@
+{
+ "id": "F26",
+ "verdict": "reject",
+ "description": "A pax `size` with a leading zero, `0777`: 777 in decimal, as POSIX says, or 511 in octal.",
+ "features": [
+  "pax.size-leading-zero"
+ ]
+}

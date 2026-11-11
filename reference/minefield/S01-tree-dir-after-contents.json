@@ -1,0 +1,19 @@
+{
+ "id": "S01",
+ "verdict": "accept",
+ "description": "A directory after its contents.",
+ "features": [],
+ "tree": [
+  {
+   "path": "d",
+   "kind": "directory"
+  },
+  {
+   "path": "d/a",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+  }
+ ]
+}
