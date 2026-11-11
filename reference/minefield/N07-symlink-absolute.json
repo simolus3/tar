@@ -1,0 +1,15 @@
+{
+ "id": "N07",
+ "verdict": "tolerate",
+ "description": "A symlink to an absolute path, created as it is.",
+ "features": [
+  "symlink.absolute"
+ ],
+ "tree": [
+  {
+   "path": "link",
+   "kind": "symlink",
+   "target": "/tar-minefield-nonexistent"
+  }
+ ]
+}

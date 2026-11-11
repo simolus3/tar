@@ -1,0 +1,8 @@
+{
+ "id": "F06",
+ "verdict": "reject",
+ "description": "A checksum that only matches as the signed sum of the header.",
+ "features": [
+  "checksum.signed"
+ ]
+}

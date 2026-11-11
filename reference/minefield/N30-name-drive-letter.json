@@ -1,0 +1,8 @@
+{
+ "id": "N30",
+ "verdict": "reject",
+ "description": "A name that starts with a drive letter, `C:/drive-letter`.",
+ "features": [
+  "name.drive-letter"
+ ]
+}

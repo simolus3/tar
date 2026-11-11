@@ -1,0 +1,20 @@
+{
+ "id": "N27",
+ "verdict": "accept",
+ "description": "A symlink with a long name and a long target, in a pax `path` and `linkpath` respectively.",
+ "features": [],
+ "tree": [
+  {
+   "path": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+   "kind": "file",
+   "executable": false,
+   "size": 7,
+   "sha256": "c97ecfda4d205190b973232dcfdb0c29748521c2534dd866bcc782f30b086738"
+  },
+  {
+   "path": "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+   "kind": "symlink",
+   "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "id": "K07",
+ "verdict": "accept",
+ "description": "A directory with an empty name field and a prefix.",
+ "features": [],
+ "tree": [
+  {
+   "path": "dir",
+   "kind": "directory"
+  }
+ ]
+}

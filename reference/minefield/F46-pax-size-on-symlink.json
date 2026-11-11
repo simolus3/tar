@@ -1,0 +1,8 @@
+{
+ "id": "F46",
+ "verdict": "reject",
+ "description": "A symlink with a pax `size`: data to skip, or none?",
+ "features": [
+  "pax.size-on-symlink"
+ ]
+}

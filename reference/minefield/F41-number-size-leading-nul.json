@@ -1,0 +1,8 @@
+{
+ "id": "F41",
+ "verdict": "reject",
+ "description": "A size with a NUL before its digits, which takes the next header for its data.",
+ "features": [
+  "number.size.leading-nul"
+ ]
+}

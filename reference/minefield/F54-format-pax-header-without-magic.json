@@ -1,0 +1,8 @@
+{
+ "id": "F54",
+ "verdict": "reject",
+ "description": "A pax extended header without magic: a header, or a file?",
+ "features": [
+  "format.pax-after-v7"
+ ]
+}

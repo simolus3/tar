@@ -1,0 +1,8 @@
+{
+ "id": "N41",
+ "verdict": "reject",
+ "description": "A pax `GNU.sparse.name` on a file that is not sparse, after a `path`.",
+ "features": [
+  "pax.gnu-sparse"
+ ]
+}

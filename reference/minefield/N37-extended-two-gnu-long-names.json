@@ -1,0 +1,8 @@
+{
+ "id": "N37",
+ "verdict": "reject",
+ "description": "Two GNU long names for one member: the first, the last, or the header's?",
+ "features": [
+  "extended.two-gnu-long-names"
+ ]
+}

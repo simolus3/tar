@@ -1,0 +1,8 @@
+{
+ "id": "N16",
+ "verdict": "reject",
+ "description": "A name with `..`, which climbs out of the directory the archive is extracted to.",
+ "features": [
+  "name.dotdot"
+ ]
+}

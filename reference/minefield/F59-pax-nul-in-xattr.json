@@ -1,0 +1,17 @@
+{
+ "id": "F59",
+ "verdict": "accept",
+ "description": "A NUL in the value of a pax xattr, before a `path` record.",
+ "features": [
+  "pax.nul-in-value.SCHILY.xattr.*"
+ ],
+ "tree": [
+  {
+   "path": "renamed",
+   "kind": "file",
+   "executable": false,
+   "size": 12,
+   "sha256": "a578eb499fb3e6e7b3cf1a53e6f0574968909fde18a8cb8b1e05ef91cd5c3dee"
+  }
+ ]
+}

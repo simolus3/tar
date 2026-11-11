@@ -1,0 +1,8 @@
+{
+ "id": "N19",
+ "verdict": "reject",
+ "description": "A NUL inside a pax `path`.",
+ "features": [
+  "pax.nul-in-value.path"
+ ]
+}

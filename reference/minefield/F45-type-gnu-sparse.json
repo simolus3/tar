@@ -1,0 +1,8 @@
+{
+ "id": "F45",
+ "verdict": "reject",
+ "description": "An old GNU sparse file, typeflag `S`: the data as stored, or the file it expands to?",
+ "features": [
+  "type.gnu-sparse"
+ ]
+}

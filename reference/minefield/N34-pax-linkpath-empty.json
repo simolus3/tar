@@ -1,0 +1,8 @@
+{
+ "id": "N34",
+ "verdict": "reject",
+ "description": "An empty pax `linkpath`, which in POSIX deletes a target: the pax one, or the header's too?",
+ "features": [
+  "pax.empty-value.linkpath"
+ ]
+}

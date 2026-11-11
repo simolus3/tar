@@ -1,0 +1,8 @@
+{
+ "id": "F22",
+ "verdict": "reject",
+ "description": "A negative pax `size`, which a member cannot have.",
+ "features": [
+  "pax.invalid-size"
+ ]
+}

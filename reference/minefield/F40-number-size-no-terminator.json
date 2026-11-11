@@ -1,0 +1,8 @@
+{
+ "id": "F40",
+ "verdict": "reject",
+ "description": "A size of 12 octal digits, without a terminator.",
+ "features": [
+  "number.size.no-terminator"
+ ]
+}

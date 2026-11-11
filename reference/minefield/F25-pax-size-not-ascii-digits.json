@@ -1,0 +1,8 @@
+{
+ "id": "F25",
+ "verdict": "reject",
+ "description": "A pax `size` in Arabic-Indic digits, `\u0665\u0661\u0662`, which some conversions of strings read as 512.",
+ "features": [
+  "pax.invalid-size"
+ ]
+}

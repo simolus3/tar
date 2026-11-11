@@ -1,0 +1,8 @@
+{
+ "id": "F15",
+ "verdict": "reject",
+ "description": "A pax `size` on a directory, which takes the next header for its data.",
+ "features": [
+  "pax.size-on-dir"
+ ]
+}

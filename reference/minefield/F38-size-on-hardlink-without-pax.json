@@ -1,0 +1,8 @@
+{
+ "id": "F38",
+ "verdict": "reject",
+ "description": "A size in the header of a hardlink, in an archive without pax headers: ustar or pax?",
+ "features": [
+  "size.on-hardlink"
+ ]
+}

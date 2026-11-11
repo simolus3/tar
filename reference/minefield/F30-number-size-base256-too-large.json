@@ -1,0 +1,8 @@
+{
+ "id": "F30",
+ "verdict": "reject",
+ "description": "A base-256 size of 2^64 + 512 in the header, which wraps around to 512 in 64 bits.",
+ "features": [
+  "number.size.base256-too-large"
+ ]
+}

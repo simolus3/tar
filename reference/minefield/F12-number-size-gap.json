@@ -1,0 +1,8 @@
+{
+ "id": "F12",
+ "verdict": "reject",
+ "description": "A size with a space among its digits, which reads as two sizes.",
+ "features": [
+  "number.size.gap-in-digits"
+ ]
+}

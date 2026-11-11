@@ -1,0 +1,8 @@
+{
+ "id": "S14",
+ "verdict": "reject",
+ "description": "A symlink to a directory, then a directory of the same name.",
+ "features": [
+  "tree.duplicate.symlink-dir"
+ ]
+}

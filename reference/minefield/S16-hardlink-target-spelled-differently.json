@@ -1,0 +1,24 @@
+{
+ "id": "S16",
+ "verdict": "tolerate",
+ "description": "A hardlink to `./a`, where the member is named `a`.",
+ "features": [
+  "hardlink.target-spelled-differently"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+  },
+  {
+   "path": "h",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+  }
+ ]
+}

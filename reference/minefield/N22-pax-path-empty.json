@@ -1,0 +1,8 @@
+{
+ "id": "N22",
+ "verdict": "reject",
+ "description": "An empty pax `path`, which in POSIX deletes a path: the pax one, or the header's name too?",
+ "features": [
+  "pax.empty-value.path"
+ ]
+}

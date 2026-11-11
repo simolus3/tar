@@ -1,0 +1,8 @@
+{
+ "id": "N31",
+ "verdict": "reject",
+ "description": "A pax `linkpath` that is not UTF-8.",
+ "features": [
+  "pax.value-not-utf8.linkpath"
+ ]
+}

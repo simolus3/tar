@@ -1,0 +1,8 @@
+{
+ "id": "N29",
+ "verdict": "reject",
+ "description": "A pax `path`, then a GNU long name, then the member: which name does it get?",
+ "features": [
+  "extended.pax-path-and-gnu-long-name"
+ ]
+}

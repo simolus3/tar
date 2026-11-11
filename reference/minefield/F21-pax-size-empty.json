@@ -1,0 +1,9 @@
+{
+ "id": "F21",
+ "verdict": "reject",
+ "description": "An empty pax `size`, which in POSIX removes the size rather than giving one.",
+ "features": [
+  "pax.empty-value.size",
+  "pax.invalid-size"
+ ]
+}

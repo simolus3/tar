@@ -1,0 +1,9 @@
+{
+ "id": "N26",
+ "verdict": "reject",
+ "description": "A global `path`, then a global header that removes it with an empty value.",
+ "features": [
+  "pax-global.path",
+  "pax-global.empty-value.path"
+ ]
+}

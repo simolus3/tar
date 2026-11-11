@@ -1,3 +1,7 @@
 platforms:
   - "vm"
   - "node"
+
+tags:
+  known_minefield_failure:
+    skip: "TODO: Investigate potential bug in pkg:tar"

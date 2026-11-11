@@ -1,0 +1,8 @@
+{
+ "id": "F20",
+ "verdict": "reject",
+ "description": "A global pax header with a `size`, which frames every member after it, or none.",
+ "features": [
+  "pax-global.size"
+ ]
+}

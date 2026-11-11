@@ -1,0 +1,8 @@
+{
+ "id": "S11",
+ "verdict": "reject",
+ "description": "A member written through a symlink, which points out of the destination.",
+ "features": [
+  "tree.through-symlink"
+ ]
+}

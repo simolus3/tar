@@ -1,0 +1,9 @@
+{
+ "id": "N24",
+ "verdict": "reject",
+ "description": "A pax path that is not UTF-8, declared as bytes with `hdrcharset=BINARY`.",
+ "features": [
+  "pax.hdrcharset",
+  "pax.path-not-utf8"
+ ]
+}

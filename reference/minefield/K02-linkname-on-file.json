@@ -1,0 +1,8 @@
+{
+ "id": "K02",
+ "verdict": "reject",
+ "description": "A regular file with a link target.",
+ "features": [
+  "linkname.on-file"
+ ]
+}

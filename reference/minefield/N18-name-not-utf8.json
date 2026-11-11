@@ -1,0 +1,8 @@
+{
+ "id": "N18",
+ "verdict": "reject",
+ "description": "A name that is not UTF-8.",
+ "features": [
+  "name.not-utf8"
+ ]
+}

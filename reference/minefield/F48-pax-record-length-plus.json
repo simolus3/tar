@@ -1,0 +1,8 @@
+{
+ "id": "F48",
+ "verdict": "reject",
+ "description": "A pax record whose length has a plus sign, `+17`.",
+ "features": [
+  "pax.invalid-length"
+ ]
+}

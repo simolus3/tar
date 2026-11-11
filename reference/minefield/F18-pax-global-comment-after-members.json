@@ -1,0 +1,24 @@
+{
+ "id": "F18",
+ "verdict": "tolerate",
+ "description": "A global pax header with only a `comment`, after the first member.",
+ "features": [
+  "pax-global.after-members"
+ ],
+ "tree": [
+  {
+   "path": "a",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7"
+  },
+  {
+   "path": "b",
+   "kind": "file",
+   "executable": false,
+   "size": 2,
+   "sha256": "0263829989b6fd954f72baaf2fc64bc2e2f01d692d4de72986ea808f6e99813f"
+  }
+ ]
+}

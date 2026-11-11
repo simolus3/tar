@@ -1,0 +1,6 @@
+{
+ "id": "F08",
+ "verdict": "reject",
+ "description": "An archive that ends inside the data of a member.",
+ "features": []
+}
