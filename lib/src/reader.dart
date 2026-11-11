@@ -947,7 +947,7 @@ final class _CurrentEntryStream extends Stream<List<int>> {
       ..onCancel = () {
         // Pause the source subscription. When reading the next entry, the tar
         // reader will drain the remaining source stream.
-        sub.pause();
+        if (!sub.isPaused) sub.pause();
         state = _EntryStreamState.cancelled;
       };
 

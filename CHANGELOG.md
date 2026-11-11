@@ -1,3 +1,7 @@
+## 2.0.4 (unreleased)
+
+- Fix allowed padding in sparse entries breaking the reader.
+
 ## 2.0.3
 
 - Fix empty pax keys or values throwing.

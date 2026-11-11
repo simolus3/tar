@@ -940,6 +940,29 @@ void main() {
       });
     }
 
+    test('can read contents of sparse files followed by other entries',
+        () async {
+      final reader =
+          TarReader(open('sparse-formats.tar'), maxSpecialFileSize: 16000);
+      final contents = <String, Uint8List>{};
+      while (await reader.moveNext()) {
+        contents[reader.current.name] =
+            await reader.current.contents.readFully();
+      }
+
+      expect(contents.keys, [
+        'sparse-gnu',
+        'sparse-posix-v-0-0',
+        'sparse-posix-0-1',
+        'sparse-posix-1-0',
+        'end',
+      ]);
+      for (final MapEntry(:key, :value) in contents.entries) {
+        if (key != 'end') expect(value, hasLength(200), reason: key);
+      }
+      expect(utf8.decode(contents['end']!), 'end\n');
+    });
+
     test('reader produces an empty stream if the entry has no size', () async {
       final reader = TarReader(open('trailing-slash.tar'));
       while (await reader.moveNext()) {

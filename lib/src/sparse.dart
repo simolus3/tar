@@ -39,28 +39,35 @@ final class SparseEntry {
 /// [sparseHoles] and the raw content in [source].
 @internal
 Stream<List<int>> sparseStream(
-    Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) {
-  if (sparseHoles.isEmpty) {
-    return ChunkedStreamReader(source).readStream(size);
-  }
+    Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) async* {
+  // Iterator through [source] to obtain the data bytes.
+  final iterator = ChunkedStreamReader(source);
 
-  return _sparseStream(source, sparseHoles, size);
+  try {
+    if (sparseHoles.isEmpty) {
+      yield* iterator.readStream(size);
+    } else {
+      yield* _sparseStream(iterator, sparseHoles, size);
+    }
+  } finally {
+    // The source may have bytes we haven't read, such as the padding after
+    // the sparse data. Cancelling it lets the reader skip those before reading
+    // the next entry.
+    await iterator.cancel();
+  }
 }
 
 /// Generates a stream of the sparse file contents of size [size], given
-/// [sparseHoles] and the raw content in [source].
+/// [sparseHoles] and the raw content in [iterator].
 ///
 /// [sparseHoles] has to be non-empty.
-Stream<List<int>> _sparseStream(
-    Stream<List<int>> source, List<SparseEntry> sparseHoles, int size) async* {
+Stream<List<int>> _sparseStream(ChunkedStreamReader<int> iterator,
+    List<SparseEntry> sparseHoles, int size) async* {
   // Current logical position in sparse file.
   var position = 0;
 
   // Index of the next sparse hole in [sparseHoles] to be processed.
   var sparseHoleIndex = 0;
-
-  // Iterator through [source] to obtain the data bytes.
-  final iterator = ChunkedStreamReader(source);
 
   while (position < size) {
     // Yield all the necessary sparse holes.

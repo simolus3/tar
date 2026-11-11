@@ -75,7 +75,7 @@ const _knownFailures = {
   'N18', 'N24', 'N31', 'N32',
   // Header fields
   'N10', 'N11', 'N14', 'N39', 'N48',
-  // Sparse files (reader throws a StateError after the sparse entry)
+  // GNU pax sparse 1.0, which is ambiguous to readers unaware of it
   'N36',
 };
 
