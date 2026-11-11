@@ -708,11 +708,11 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
   ///
   /// This replaces all currently active local headers.
   void newLocals(Map<String, String> headers, {bool strict = false}) {
-    _localHeaders = headers;
-
     if (_localHeaders.isNotEmpty && strict) {
       throw TarException.header('Two local pax headers for the same entry');
     }
+
+    _localHeaders = headers;
   }
 
   /// Clears local headers.
