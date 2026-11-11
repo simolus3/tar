@@ -68,7 +68,7 @@ const _knownFailures = {
   // Pax size
   'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
   // Conflicting names
-  'N08', 'N09', 'N23', 'N29', 'N37', 'N38',
+  'N38',
   // Duplicate or empty pax keys
   'N20', 'N22', 'N26', 'N34', 'N40', 'N41',
   // Non-UTF-8 names and link targets
@@ -129,7 +129,7 @@ Future<List<TreeEntry>> extractInMemory(Stream<List<int>> tar) async {
     }
   }
 
-  final reader = TarReader(tar, disallowTrailingData: true);
+  final reader = TarReader(tar, strict: true);
   while (await reader.moveNext()) {
     final entry = reader.current;
     final header = entry.header;

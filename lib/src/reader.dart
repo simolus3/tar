@@ -23,6 +23,7 @@ final class TarReader implements StreamIterator<TarEntry> {
   final BlockReader _reader;
   final PaxHeaders _paxHeaders = PaxHeaders();
   final int _maxSpecialFileSize;
+  final bool _strict;
 
   TarEntry? _current;
   _CurrentEntryStream? _currentStream;
@@ -65,12 +66,15 @@ final class TarReader implements StreamIterator<TarEntry> {
   /// buffered in the parser to properly read the following tar entries. To
   /// avoid memory-based denial-of-service attacks, this library limits their
   /// maximum length. Changing the default of 2 KiB is rarely necessary.
-  TarReader(Stream<List<int>> tarStream,
-      {int maxSpecialFileSize = defaultSpecialLength,
-      bool disallowTrailingData = false})
-      : _reader = BlockReader(tarStream),
-        _checkNoTrailingData = disallowTrailingData,
-        _maxSpecialFileSize = maxSpecialFileSize;
+  TarReader(
+    Stream<List<int>> tarStream, {
+    int maxSpecialFileSize = defaultSpecialLength,
+    bool disallowTrailingData = false,
+    bool strict = false,
+  })  : _reader = BlockReader(tarStream),
+        _checkNoTrailingData = strict || disallowTrailingData,
+        _maxSpecialFileSize = maxSpecialFileSize,
+        _strict = strict;
 
   @override
   TarEntry get current {
@@ -152,6 +156,7 @@ final class TarReader implements StreamIterator<TarEntry> {
       // Check for PAX/GNU special headers and files.
       if (nextHeader.typeFlag == TypeFlag.xHeader ||
           nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
+        final isGlobal = nextHeader.typeFlag == TypeFlag.xGlobalHeader;
         format = format.mayOnlyBe(TarFormat.pax);
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
 
@@ -159,9 +164,7 @@ final class TarReader implements StreamIterator<TarEntry> {
             (await _readFullBlock(amount: numBlocks(paxHeaderSize)))
                 .sublistView(0, paxHeaderSize);
 
-        _paxHeaders.readPaxHeaders(
-            rawPaxHeaders, nextHeader.typeFlag == TypeFlag.xGlobalHeader);
-
+        _paxHeaders.readPaxHeaders(rawPaxHeaders, isGlobal, strict: _strict);
         // This is a meta header affecting the next header.
         continue;
       } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
@@ -172,8 +175,16 @@ final class TarReader implements StreamIterator<TarEntry> {
 
         final readName = realName.readString(0, realName.length);
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
+          if (_strict && gnuLongName.isNotEmpty) {
+            throw TarException.header('Duplicate gnu long name header');
+          }
+
           gnuLongName = readName;
         } else {
+          if (_strict && gnuLongLink.isNotEmpty) {
+            throw TarException.header('Duplicate gnu long link header');
+          }
+
           gnuLongLink = readName;
         }
 
@@ -193,6 +204,11 @@ final class TarReader implements StreamIterator<TarEntry> {
           } else {
             nextHeader.internalTypeFlag = TypeFlag.reg;
           }
+        }
+
+        if (_strict && !format.valid) {
+          throw TarException.header(
+              'Unexpected combination of tar formats in header.');
         }
 
         final content = await _handleFile(nextHeader, rawHeader);
@@ -691,8 +707,12 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
   /// Applies new local PAX-headers from the map.
   ///
   /// This replaces all currently active local headers.
-  void newLocals(Map<String, String> headers) {
+  void newLocals(Map<String, String> headers, {bool strict = false}) {
     _localHeaders = headers;
+
+    if (_localHeaders.isNotEmpty && strict) {
+      throw TarException.header('Two local pax headers for the same entry');
+    }
   }
 
   /// Clears local headers.
@@ -723,7 +743,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
   /// [posix pax]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_03
   /// [gnu sparse00]: https://www.gnu.org/software/tar/manual/html_section/tar_94.html#SEC192
   void readPaxHeaders(List<int> data, bool isGlobal,
-      {bool ignoreUnknown = true}) {
+      {bool ignoreUnknown = true, bool strict = false}) {
     var offset = 0;
     final map = <String, String>{};
     final sparseMap = <String>[];
@@ -835,7 +855,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
     if (isGlobal) {
       newGlobals(map);
     } else {
-      newLocals(map);
+      newLocals(map, strict: strict);
     }
   }
 
