@@ -16,11 +16,11 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Run zizmor 🌈
-        uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        uses: zizmorcore/zizmor-action@v0.8.1
 
   analyze:
     strategy:
@@ -33,10 +33,10 @@ jobs:
       dev: ${{ steps.output.outputs.dev }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@v1.8.2
         id: dart
         with:
           sdk: ${{ matrix.dart-sdk }}
@@ -49,7 +49,7 @@ jobs:
       # indicates a changed dependency after `pub upgrade`. However, we can't
       # include the pubspec.lock in the cache key as it's not part of the repository.
       # So, we explicitly restore from and update to the cache as needed.
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@v6.1.0
         id: restore
         with:
           path: |
@@ -77,7 +77,7 @@ jobs:
 
       - name: "Update cache due to changed pubspec.lock"
         if: ${{ hashFiles('**/pubspec.lock') != steps.deps-before.outputs.lockfiles || !steps.restore.outputs.cache-hit }}
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v6.1.0
         with:
           path: |
             ${{ env.PUB_CACHE }}
@@ -106,16 +106,16 @@ jobs:
     steps:
       - run: git config --global core.autocrlf false
         if: runner.os == 'Windows'
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@v1.8.2
         with:
           sdk: ${{ matrix.dart-sdk }}
       - name: "Setup local pub cache folder"
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
         shell: bash
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@v6.1.0
         with:
           path: |
             ${{ env.PUB_CACHE }}

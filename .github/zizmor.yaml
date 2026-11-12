@@ -4,5 +4,3 @@ rules:
     config:
       policies:
         "dart-lang/*": ref-pin
-        "actions/*": ref-pin
-
