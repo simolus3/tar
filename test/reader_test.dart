@@ -24,6 +24,52 @@ void main() {
   test('ustar', () => _testWith('reference/ustar.tar'));
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
+  group('reads ustar headers with version', () {
+    // POSIX requires the version "00", but before version 2.0.4 this package
+    // wrote "0 " (https://github.com/simolus3/tar/issues/61). Many archives,
+    // including those created by `dart pub`, have that version, so both must
+    // still be readable.
+    for (final version in ['00', '0 ']) {
+      for (final format in OutputFormat.values) {
+        test('"$version" ($format)', () async {
+          final name = '${'very' * 30} long name.txt';
+          final entry = TarEntry.data(
+            TarHeader(name: name, mode: int.parse('644', radix: 8)),
+            utf8.encode('content'),
+          );
+          final bytes = Uint8List.fromList(await Stream<TarEntry>.value(entry)
+              .transform(tarWriterWith(format: format))
+              .expand((chunk) => chunk)
+              .toList());
+
+          // There are two headers: the pax / GNU long name header, and the
+          // header of the entry after the long name.
+          final firstSize =
+              int.parse(ascii.decode(bytes.sublist(124, 135)).trim(), radix: 8);
+          final secondHeader = 512 + (firstSize + 511) ~/ 512 * 512;
+          for (final offset in [0, secondHeader]) {
+            final header = Uint8List.sublistView(bytes, offset, offset + 512)
+              ..setAll(263, version.codeUnits)
+              // The checksum is computed with the checksum field itself
+              // filled with spaces.
+              ..fillRange(148, 156, 0x20);
+            final checksum = header.fold<int>(0, (a, b) => a + b);
+            header.setAll(
+                148,
+                ascii.encode(
+                    '${checksum.toRadixString(8).padLeft(6, '0')}\x00 '));
+          }
+
+          final reader = TarReader(Stream.value(bytes));
+          expect(await reader.moveNext(), isTrue);
+          expect(reader.current.name, name);
+          expect(await utf8.decodeStream(reader.current.contents), 'content');
+          expect(await reader.moveNext(), isFalse);
+        });
+      }
+    }
+  });
+
   test('can skip tar files', () async {
     final input = openRead('reference/posix.tar');
     final reader = TarReader(input);

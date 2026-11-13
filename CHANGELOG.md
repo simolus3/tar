@@ -2,6 +2,7 @@
 
 - Add opt-in `strict` option to harden the reader against ambiguous tar files.
 - Fix allowed padding in sparse entries breaking the reader.
+- Write the ustar version field as `00` instead of `0 `, as required by POSIX.
 
 ## 2.0.3
 
