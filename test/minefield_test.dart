@@ -61,8 +61,6 @@ void main() {
 }
 
 const _knownFailures = {
-  // Numeric fields
-  'F06', 'F11', 'F12', 'F37', 'F40', 'F41',
   // End of archive and framing
   'F39', 'F54',
   // Pax size

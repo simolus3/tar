@@ -673,7 +673,7 @@ final class TarReader implements StreamIterator<TarEntry> {
     }
 
     // Read the real size of the file when sparse holes are expanded.
-    header.size = rawHeader.readNumeric(483, 12);
+    header.size = rawHeader.readNumeric(483, 12, _strict);
     final sparseEntries = <SparseEntry>[];
 
     bool readEntry(Uint8List source, int offset) {
@@ -681,8 +681,8 @@ final class TarReader implements StreamIterator<TarEntry> {
       // sparse structures.
       if (rawHeader[offset] == 0) return false;
 
-      final fileOffset = source.readNumeric(offset, 12);
-      final length = source.readNumeric(offset + 12, 12);
+      final fileOffset = source.readNumeric(offset, 12, _strict);
+      final length = source.readNumeric(offset + 12, 12, _strict);
 
       sparseEntries.add(SparseEntry(fileOffset, length));
       return true;

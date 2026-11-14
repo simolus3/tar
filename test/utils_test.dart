@@ -63,21 +63,23 @@ void main() {
   group('readNumeric', () {
     void testValid(String value, int expected) {
       test('readNumeric($value)', () {
-        expect(Uint8List.fromList(value.codeUnits).readNumeric(0, value.length),
+        expect(
+            Uint8List.fromList(value.codeUnits)
+                .readNumeric(0, value.length, false),
             expected);
       });
     }
 
     void testValidBin(List<int> value, int expected) {
       test('readNumeric($value)', () {
-        expect(
-            Uint8List.fromList(value).readNumeric(0, value.length), expected);
+        expect(Uint8List.fromList(value).readNumeric(0, value.length, false),
+            expected);
       });
     }
 
-    void testInvalid(String value) {
+    void testInvalid(String value, [bool strict = false]) {
       test('readNumeric($value)', () {
-        expect(() => _bytes(value).readNumeric(0, value.length),
+        expect(() => _bytes(value).readNumeric(0, value.length, true),
             throwsA(isA<TarException>()));
       });
     }
@@ -121,6 +123,11 @@ void main() {
       testInvalid('0123456789abcdef');
       testInvalid('0123456789\x00abcdef');
       testInvalid('0123\x7e\x5f\x264123');
+
+      group('strict', () {
+        testInvalid('\x00 0000660\x00 ', true);
+        testInvalid('0001 1000', true);
+      });
     });
   });
 

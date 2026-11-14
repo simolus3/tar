@@ -58,31 +58,43 @@ extension ByteBufferUtils on Uint8List {
 
   /// Parse an octal string encoded from index [offset] with the maximum length
   /// [length].
-  int readOctal(int offset, int length) {
-    var result = 0;
-    var multiplier = 1;
+  int readOctal(int offset, int length, bool strict) {
+    var sawEnd = false;
+    var value = 0;
 
-    for (var i = length - 1; i >= 0; i--) {
+    for (var i = 0; i < length; i++) {
       final charCode = this[offset + i];
-      // Some tar implementations add a \0 or space at the end, ignore that
-      if (charCode == 0 || charCode == $space) continue;
-      if (charCode < $0 || charCode > $9) {
+      if (charCode == 0 || charCode == $space) {
+        // Padding at the end. In strict mode, all remaining fields must be
+        // padding (https://stoppels.ch/tar/F12.html).
+        sawEnd = true;
+        continue;
+      }
+
+      if (strict && sawEnd) {
+        // Number after NUL or space terminator. This is ambiguous, e.g. a value
+        // like "000000 1000" can be interpreted as 0 or 512 (https://stoppels.ch/tar/F12.html).
+        throw TarException.header('Invalid terminator within number');
+      }
+
+      if (charCode < $0 || charCode > $7) {
         throw TarException('Invalid octal value');
       }
 
-      // Obtain the numerical value of this digit
-      final digit = charCode - $0;
-      result += digit * multiplier;
-      multiplier <<= 3; // Multiply by the base, 8
+      value = (value << 3) + charCode - $0;
     }
 
-    return result;
+    if (!sawEnd && strict) {
+      throw TarException.header('Unterminated octal');
+    }
+
+    return value;
   }
 
   /// Parses an encoded int, either as base-256 or octal.
   ///
   /// This function may return negative numbers.
-  int readNumeric(int offset, int length) {
+  int readNumeric(int offset, int length, bool strict) {
     if (length == 0) return 0;
 
     // Check for base-256 (binary) format first. If the first bit is set, then
@@ -110,7 +122,7 @@ extension ByteBufferUtils on Uint8List {
       return inverseMask == 0xff ? ~x : x;
     }
 
-    return readOctal(offset, length);
+    return readOctal(offset, length, strict);
   }
 
   int computeUnsignedHeaderChecksum() {

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+import 'charcodes.dart';
 import 'constants.dart';
 import 'exception.dart';
 import 'format.dart';
@@ -272,19 +273,19 @@ class HeaderImpl extends TarHeader {
     assert(headerBlock.length == 512);
 
     final format = _getFormat(headerBlock, strict);
-    final size = paxHeaders.size ?? headerBlock.readOctal(124, 12);
+    final size = paxHeaders.size ?? headerBlock.readOctal(124, 12, strict);
 
     // Start by reading data available in every format.
     final header = HeaderImpl.internal(
       format: format,
       name: headerBlock.readString(0, 100, strict: strict),
-      mode: headerBlock.readOctal(100, 8),
+      mode: headerBlock.readOctal(100, 8, strict),
       // These should be octal, but some weird tar implementations ignore that?!
       // Encountered with package:RAL, version 1.28.0 on pub
-      userId: headerBlock.readNumeric(108, 8),
-      groupId: headerBlock.readNumeric(116, 8),
+      userId: headerBlock.readNumeric(108, 8, strict),
+      groupId: headerBlock.readNumeric(116, 8, strict),
       size: size,
-      modified: secondsSinceEpoch(headerBlock.readOctal(136, 12)),
+      modified: secondsSinceEpoch(headerBlock.readOctal(136, 12, strict)),
       typeFlag: typeflagFromByte(headerBlock[156]),
       linkName: headerBlock.readStringOrNullIfEmpty(157, 100, strict: strict),
     );
@@ -301,8 +302,8 @@ class HeaderImpl extends TarHeader {
             headerBlock.readStringOrNullIfEmpty(265, 32, strict: strict)
         ..groupName ??=
             headerBlock.readStringOrNullIfEmpty(297, 32, strict: strict)
-        ..devMajor = headerBlock.readNumeric(329, 8)
-        ..devMinor = headerBlock.readNumeric(337, 8);
+        ..devMajor = headerBlock.readNumeric(329, 8, strict)
+        ..devMinor = headerBlock.readNumeric(337, 8, strict);
 
       // Prefix to the file name
       var prefix = '';
@@ -315,17 +316,21 @@ class HeaderImpl extends TarHeader {
       } else if (format.has(TarFormat.star)) {
         prefix = headerBlock.readString(345, 131, strict: strict);
         header
-          ..accessed = secondsSinceEpoch(headerBlock.readNumeric(476, 12))
-          ..changed = secondsSinceEpoch(headerBlock.readNumeric(488, 12));
+          ..accessed =
+              secondsSinceEpoch(headerBlock.readNumeric(476, 12, strict))
+          ..changed =
+              secondsSinceEpoch(headerBlock.readNumeric(488, 12, strict));
       } else if (format.has(TarFormat.gnu)) {
         header.format = TarFormat.gnu;
 
         if (headerBlock[345] != 0) {
-          header.accessed = secondsSinceEpoch(headerBlock.readNumeric(345, 12));
+          header.accessed =
+              secondsSinceEpoch(headerBlock.readNumeric(345, 12, strict));
         }
 
         if (headerBlock[357] != 0) {
-          header.changed = secondsSinceEpoch(headerBlock.readNumeric(357, 12));
+          header.changed =
+              secondsSinceEpoch(headerBlock.readNumeric(357, 12, strict));
         }
       }
 
@@ -391,17 +396,31 @@ class HeaderImpl extends TarHeader {
 /// checksum, and then attempts to guess the specific format based
 /// on magic values. If the checksum fails, then an error is thrown.
 MaybeTarFormat _getFormat(Uint8List rawHeader, bool strict) {
-  final checksum = rawHeader.readOctal(checksumOffset, checksumLength);
+  final checksum = rawHeader.readOctal(checksumOffset, checksumLength, strict);
 
   // Modern TAR archives use the unsigned checksum, but we check the signed
   // checksum as well for compatibility.
   if (checksum != rawHeader.computeUnsignedHeaderChecksum() &&
-      checksum != rawHeader.computeSignedHeaderChecksum()) {
+      (strict || checksum != rawHeader.computeSignedHeaderChecksum())) {
     throw TarException.header('Checksum does not match');
   }
 
   final hasUstarMagic = rawHeader.matchesHeader(magicUstar);
   if (hasUstarMagic) {
+    // ustar specifies two zero chars as a version. Some writers (including this
+    // package) write zero bytes instead, which we allow as well (https://stoppels.ch/tar/F11.html).
+    void checkVersion(int offset) {
+      final byte = rawHeader[offset];
+      if (byte != 0 && byte != $0) {
+        throw TarException.header('Invalid ustar version');
+      }
+    }
+
+    if (strict) {
+      checkVersion(versionOffset);
+      checkVersion(versionOffset + 1);
+    }
+
     return rawHeader.matchesHeader(trailerStar, offset: starTrailerOffset)
         ? TarFormat.star
         : TarFormat.ustar | TarFormat.pax;
