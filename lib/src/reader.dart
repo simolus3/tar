@@ -66,11 +66,17 @@ final class TarReader implements StreamIterator<TarEntry> {
   /// buffered in the parser to properly read the following tar entries. To
   /// avoid memory-based denial-of-service attacks, this library limits their
   /// maximum length. Changing the default of 2 KiB is rarely necessary.
+  ///
+  /// When [strict] is enabled (it is disabled by default), the parser rejects
+  /// tar files known to be ambiguous (meaning that different widely-used tar
+  /// implementations interpret them in different ways). This option is
+  /// currently experimental, as additional restrictions may be implemented in
+  /// the future. It is primarily inspired by the [tar file extraction test suite](https://stoppels.ch/tar/index.html#policy).
   TarReader(
     Stream<List<int>> tarStream, {
     int maxSpecialFileSize = defaultSpecialLength,
     bool disallowTrailingData = false,
-    bool strict = false,
+    @experimental bool strict = false,
   })  : _reader = BlockReader(tarStream),
         _checkNoTrailingData = strict || disallowTrailingData,
         _maxSpecialFileSize = maxSpecialFileSize,
@@ -264,8 +270,9 @@ final class TarReader implements StreamIterator<TarEntry> {
 
   /// Utility function for quickly iterating through all entries in [tarStream].
   static Future<void> forEach(Stream<List<int>> tarStream,
-      FutureOr<void> Function(TarEntry entry) action) async {
-    final reader = TarReader(tarStream);
+      FutureOr<void> Function(TarEntry entry) action,
+      {@experimental bool strict = false}) async {
+    final reader = TarReader(tarStream, strict: strict);
     try {
       while (await reader.moveNext()) {
         await action(reader.current);

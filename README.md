@@ -205,6 +205,11 @@ Future<void> extractTarGz(File tarGz, Directory target) async {
 }
 ```
 
+> [!TIP]
+> Enabling `strict: true` on `TarReader` rejects ambiguous archives (such as
+> archives containing multiple formats), and is a recommended option where
+> failing is better than a mismatch with other parsers.
+
 For an idea on how to guard against this, see the [extraction logic](https://github.com/dart-lang/pub/blob/3082796f8ba9b3f509265ac3a223312fb5033988/lib/src/io.dart#L904-L991)
 used by the pub client.
 
