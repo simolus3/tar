@@ -840,6 +840,10 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
           error();
         }
 
+        if (strict && map.containsKey(key)) {
+          throw TarException.header('Duplicate PAX entry `$key`');
+        }
+
         map[key] = value;
       }
 
