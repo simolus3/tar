@@ -26,7 +26,7 @@ void main() {
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
 
   test('reads ustar headers with broken version', () async {
-    // POSIX requires the version "00", but before version 2.0.4 this package
+    // POSIX requires the version "00", but before version 2.1.0 this package
     // wrote "0\0" (https://github.com/simolus3/tar/issues/61). Many archives,
     // including those created by `dart pub`, have that version, so both must
     // still be readable.
@@ -45,7 +45,7 @@ void main() {
           ascii.encode('${checksum.toRadixString(8).padLeft(6, '0')}\x00 '));
     }
 
-    final reader = TarReader(Stream.value(bytes));
+    final reader = TarReader(Stream.value(bytes), strict: true);
     expect(await reader.moveNext(), isTrue);
     expect(reader.current.header.name, 'small.txt');
     expect(await reader.moveNext(), isTrue);

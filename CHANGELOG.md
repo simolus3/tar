@@ -1,4 +1,4 @@
-## 2.1.0 (unreleased)
+## 2.1.0
 
 - Add opt-in `strict` option to harden the reader against ambiguous tar files.
 - Fix allowed padding in sparse entries breaking the reader.
