@@ -120,6 +120,7 @@ final class TarReader implements StreamIterator<TarEntry> {
     String? gnuLongName;
     String? gnuLongLink;
     var eofAcceptable = true;
+    var hadLocalPaxHeader = false;
 
     var format = TarFormat.ustar |
         TarFormat.pax |
@@ -157,6 +158,11 @@ final class TarReader implements StreamIterator<TarEntry> {
       if (nextHeader.typeFlag == TypeFlag.xHeader ||
           nextHeader.typeFlag == TypeFlag.xGlobalHeader) {
         final isGlobal = nextHeader.typeFlag == TypeFlag.xGlobalHeader;
+        if (_strict && hadLocalPaxHeader) {
+          throw TarException.header(
+              'Invalid pax header after existing local pax entry');
+        }
+
         format = format.mayOnlyBe(TarFormat.pax);
         final paxHeaderSize = _checkSpecialSize(nextHeader.size);
 
@@ -165,6 +171,9 @@ final class TarReader implements StreamIterator<TarEntry> {
                 .sublistView(0, paxHeaderSize);
 
         _paxHeaders.readPaxHeaders(rawPaxHeaders, isGlobal, strict: _strict);
+        if (!isGlobal) {
+          hadLocalPaxHeader = true;
+        }
         // This is a meta header affecting the next header.
         continue;
       } else if (nextHeader.typeFlag == TypeFlag.gnuLongLink ||
@@ -729,11 +738,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String?> {
   /// Applies new local PAX-headers from the map.
   ///
   /// This replaces all currently active local headers.
-  void newLocals(Map<String, String?> headers, {bool strict = false}) {
-    if (_localHeaders.isNotEmpty && strict) {
-      throw TarException.header('Two local pax headers for the same entry');
-    }
-
+  void newLocals(Map<String, String?> headers) {
     _localHeaders = headers;
   }
 
@@ -891,7 +896,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String?> {
     if (isGlobal) {
       newGlobals(map);
     } else {
-      newLocals(map, strict: strict);
+      newLocals(map);
     }
   }
 

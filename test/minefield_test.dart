@@ -61,10 +61,12 @@ void main() {
 }
 
 const _knownFailures = {
-  // End of archive and framing
-  'F39', 'F54',
-  // Pax size
-  'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
+  'F39', // Multiple formats in same archive
+  'F13', // newline in pax path
+  'F20', // Size in global pax header
+  'F23', // Pax size with +512 size
+  'F24', // Pax size with leading space
+  'F26', // Pax size with leading zero
   'N40', // global pax header with linkpath
   'N10', // combined ustar + star
   'N11', // Timestamp interpreted as a prefix by some tar decoders
