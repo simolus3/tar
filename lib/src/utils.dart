@@ -48,6 +48,10 @@ extension ByteBufferUtils on Uint8List {
     try {
       return utf8.decode(data);
     } on FormatException {
+      if (strict) {
+        throw TarException.header('Invalid UTF-8');
+      }
+
       return String.fromCharCodes(data).trim();
     }
   }

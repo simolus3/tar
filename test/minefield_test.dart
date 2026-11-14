@@ -69,8 +69,6 @@ const _knownFailures = {
   'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
   // Duplicate or empty pax keys
   'N20', 'N22', 'N26', 'N34', 'N40', 'N41',
-  // Non-UTF-8 names and link targets
-  'N18', 'N24', 'N31', 'N32',
   // Header fields
   'N10', 'N11', 'N39', 'N48',
   // GNU pax sparse 1.0, which is ambiguous to readers unaware of it

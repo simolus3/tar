@@ -815,6 +815,10 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
         error();
       }
 
+      // Ignore unrecognized headers to avoid unbounded growth of the global
+      // header map.
+      final isKnownHeader = supportedPaxHeaders.contains(key);
+
       // If we're seeing weird PAX Version 0.0 sparse keys, expect alternating
       // GNU.sparse.offset and GNU.sparse.numbytes headers.
       if (key == paxGNUSparseNumBytes || key == paxGNUSparseOffset) {
@@ -828,10 +832,9 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
         }
 
         sparseMap.add(value);
-      } else if (!ignoreUnknown || supportedPaxHeaders.contains(key)) {
-        // Ignore unrecognized headers to avoid unbounded growth of the global
-        // header map.
-        final value = decodeString(data, offset, endOfValue, true);
+      } else if (!ignoreUnknown || isKnownHeader) {
+        final allowMalformed = !strict || !isKnownHeader;
+        final value = decodeString(data, offset, endOfValue, allowMalformed);
 
         if (!_isValidPaxRecord(key, value)) {
           error();
