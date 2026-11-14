@@ -64,9 +64,9 @@ const _knownFailures = {
   // Numeric fields
   'F06', 'F11', 'F12', 'F37', 'F40', 'F41',
   // End of archive and framing
-  'F03', 'F39', 'F54',
+  'F39', 'F54',
   // Pax size
-  'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
+  'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
   'N40', // global pax header with linkpath
   'N10', // combined ustar + star
   'N11', // Timestamp interpreted as a prefix by some tar decoders

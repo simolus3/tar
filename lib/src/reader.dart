@@ -399,14 +399,20 @@ final class TarReader implements StreamIterator<TarEntry> {
   ///	* Exactly 1 block of zeros is read and EOF is hit.
   ///	* At least 2 blocks of zeros are read.
   Future<HeaderImpl?> _readHeader(Uint8List rawHeader) async {
+    Null nonstandardEof() {
+      if (_strict) {
+        throw TarException('Expected two empty blocks before end of file');
+      }
+    }
+
     // Exactly 0 bytes are read and EOF is hit.
-    if (rawHeader.isEmpty) return null;
+    if (rawHeader.isEmpty) return nonstandardEof();
 
     if (rawHeader.isAllZeroes) {
       rawHeader = await _reader.nextBlock();
 
       // Exactly 1 block of zeroes is read and EOF is hit.
-      if (rawHeader.isEmpty) return null;
+      if (rawHeader.isEmpty) return nonstandardEof();
 
       if (rawHeader.isAllZeroes) {
         // Two blocks of zeros are read - Normal EOF.

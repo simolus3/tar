@@ -1013,6 +1013,18 @@ void main() {
     });
   });
 
+  group('accepts non-standard file end', () {
+    test('no empty block', () async {
+      final reader = TarReader(Stream.empty());
+      expect(await reader.moveNext(), false);
+    });
+
+    test('one empty block', () async {
+      final reader = TarReader(Stream.value(Uint8List(512)));
+      expect(await reader.moveNext(), false);
+    });
+  });
+
   test('throws for invalid utf8 in pax key', () async {
     final reader = TarReader(openRead('reference/bad/invalid_pax_header.tar'));
     expect(reader.moveNext(), throwsA(isA<TarException>()));
