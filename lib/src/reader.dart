@@ -173,7 +173,8 @@ final class TarReader implements StreamIterator<TarEntry> {
         final size = _checkSpecialSize(nextHeader.size);
         final realName = await _readFullBlock(amount: numBlocks(size));
 
-        final readName = realName.readString(0, realName.length);
+        final readName =
+            realName.readString(0, realName.length, strict: _strict);
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
           if (_strict && gnuLongName != null) {
             throw TarException.header('Duplicate gnu long name header');
@@ -406,7 +407,8 @@ final class TarReader implements StreamIterator<TarEntry> {
       throw TarException('Encountered a non-zero block after a zero block');
     }
 
-    return HeaderImpl.parseBlock(rawHeader, paxHeaders: _paxHeaders);
+    return HeaderImpl.parseBlock(rawHeader,
+        paxHeaders: _paxHeaders, strict: _strict);
   }
 
   /// Creates a stream of the next entry's content
@@ -548,7 +550,7 @@ final class TarReader implements StreamIterator<TarEntry> {
       final nextNewLineIndex = block.indexOf($lf);
       final result = block.sublist(0, nextNewLineIndex);
       block.removeRange(0, nextNewLineIndex + 1);
-      return result.readString(0, nextNewLineIndex);
+      return result.readString(0, nextNewLineIndex, strict: _strict);
     }
 
     await feedTokens(1);

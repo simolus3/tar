@@ -17,21 +17,32 @@ const _checksumEnd = checksumOffset + checksumLength;
 const _checksumPlaceholder = $space;
 
 extension ByteBufferUtils on Uint8List {
-  String readString(int offset, int maxLength) {
-    return readStringOrNullIfEmpty(offset, maxLength) ?? '';
+  String readString(int offset, int maxLength, {required bool strict}) {
+    return readStringOrNullIfEmpty(offset, maxLength, strict: strict) ?? '';
   }
 
   Uint8List sublistView(int start, [int? end]) {
     return Uint8List.sublistView(this, start, end);
   }
 
-  String? readStringOrNullIfEmpty(int offset, int maxLength) {
+  String? readStringOrNullIfEmpty(int offset, int maxLength,
+      {required bool strict}) {
     var data = sublistView(offset, offset + maxLength);
     var contentLength = data.indexOf(0);
     // If there's no \0, assume that the string fills the whole segment
     if (contentLength.isNegative) contentLength = maxLength;
 
     if (contentLength == 0) return null;
+
+    if (strict) {
+      // In strict mode, also verify that there are no trailing characters after
+      // the nul terminator (https://stoppels.ch/tar/N14.html).
+      for (var i = maxLength - 1; i > contentLength; i--) {
+        if (data[i] != 0) {
+          throw TarException.header('Unexpected data after nul terminator.');
+        }
+      }
+    }
 
     data = data.sublistView(0, contentLength);
     try {

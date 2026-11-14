@@ -14,25 +14,33 @@ import 'package:test/test.dart';
 void main() {
   group('readString', () {
     test('can read empty strings', () {
-      expect(_bytes('').readString(0, 0), '');
+      expect(_bytes('').readString(0, 0, strict: true), '');
     });
 
     test('does not include trailing null', () {
-      expect(_bytes('hello\x00').readString(0, 6), 'hello');
+      expect(_bytes('hello\x00').readString(0, 6, strict: true), 'hello');
+    });
+
+    test('can throw for trailing data', () {
+      expect(() => _bytes('hello\x00world').readString(0, 11, strict: true),
+          throwsFormatException);
+      expect(
+          _bytes('hello\x00world').readString(0, 11, strict: false), 'hello');
     });
 
     test('does not require a trailing null', () {
-      expect(_bytes('hello').readString(0, 5), 'hello');
+      expect(_bytes('hello').readString(0, 5, strict: true), 'hello');
     });
   });
 
   group('readStringOrNullIfEmpty', () {
     test('returns null if empty', () {
-      expect(_bytes('').readStringOrNullIfEmpty(0, 0), isNull);
+      expect(_bytes('').readStringOrNullIfEmpty(0, 0, strict: true), isNull);
     });
 
     test('can read non-empty strings', () {
-      expect(_bytes('hello').readStringOrNullIfEmpty(0, 5), 'hello');
+      expect(
+          _bytes('hello').readStringOrNullIfEmpty(0, 5, strict: true), 'hello');
     });
   });
 

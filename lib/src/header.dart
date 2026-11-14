@@ -268,7 +268,7 @@ class HeaderImpl extends TarHeader {
         super._();
 
   factory HeaderImpl.parseBlock(Uint8List headerBlock,
-      {Map<String, String> paxHeaders = const {}}) {
+      {Map<String, String> paxHeaders = const {}, required bool strict}) {
     assert(headerBlock.length == 512);
 
     final format = _getFormat(headerBlock);
@@ -277,7 +277,7 @@ class HeaderImpl extends TarHeader {
     // Start by reading data available in every format.
     final header = HeaderImpl.internal(
       format: format,
-      name: headerBlock.readString(0, 100),
+      name: headerBlock.readString(0, 100, strict: strict),
       mode: headerBlock.readOctal(100, 8),
       // These should be octal, but some weird tar implementations ignore that?!
       // Encountered with package:RAL, version 1.28.0 on pub
@@ -286,7 +286,7 @@ class HeaderImpl extends TarHeader {
       size: size,
       modified: secondsSinceEpoch(headerBlock.readOctal(136, 12)),
       typeFlag: typeflagFromByte(headerBlock[156]),
-      linkName: headerBlock.readStringOrNullIfEmpty(157, 100),
+      linkName: headerBlock.readStringOrNullIfEmpty(157, 100, strict: strict),
     );
 
     if (header.hasContent && size < 0) {
@@ -297,21 +297,23 @@ class HeaderImpl extends TarHeader {
       // If it's a valid header that is not of the v7 format, it will have the
       // USTAR fields
       header
-        ..userName ??= headerBlock.readStringOrNullIfEmpty(265, 32)
-        ..groupName ??= headerBlock.readStringOrNullIfEmpty(297, 32)
+        ..userName ??=
+            headerBlock.readStringOrNullIfEmpty(265, 32, strict: strict)
+        ..groupName ??=
+            headerBlock.readStringOrNullIfEmpty(297, 32, strict: strict)
         ..devMajor = headerBlock.readNumeric(329, 8)
         ..devMinor = headerBlock.readNumeric(337, 8);
 
       // Prefix to the file name
       var prefix = '';
       if (format.has(TarFormat.ustar) || format.has(TarFormat.pax)) {
-        prefix = headerBlock.readString(345, 155);
+        prefix = headerBlock.readString(345, 155, strict: strict);
 
         if (headerBlock.any(isNotAscii)) {
           header.format = format.mayOnlyBe(TarFormat.pax);
         }
       } else if (format.has(TarFormat.star)) {
-        prefix = headerBlock.readString(345, 131);
+        prefix = headerBlock.readString(345, 131, strict: strict);
         header
           ..accessed = secondsSinceEpoch(headerBlock.readNumeric(476, 12))
           ..changed = secondsSinceEpoch(headerBlock.readNumeric(488, 12));

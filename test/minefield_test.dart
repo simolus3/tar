@@ -72,7 +72,7 @@ const _knownFailures = {
   // Non-UTF-8 names and link targets
   'N18', 'N24', 'N31', 'N32',
   // Header fields
-  'N10', 'N11', 'N14', 'N39', 'N48',
+  'N10', 'N11', 'N39', 'N48',
   // GNU pax sparse 1.0, which is ambiguous to readers unaware of it
   'N36',
 };
