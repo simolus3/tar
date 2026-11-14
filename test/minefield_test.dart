@@ -67,8 +67,6 @@ const _knownFailures = {
   'F03', 'F39', 'F54',
   // Pax size
   'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
-  // Conflicting names
-  'N38',
   // Duplicate or empty pax keys
   'N20', 'N22', 'N26', 'N34', 'N40', 'N41',
   // Non-UTF-8 names and link targets

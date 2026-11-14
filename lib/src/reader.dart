@@ -117,8 +117,8 @@ final class TarReader implements StreamIterator<TarEntry> {
     // We're reading a new logical file, so clear the local pax headers
     _paxHeaders.clearLocals();
 
-    var gnuLongName = '';
-    var gnuLongLink = '';
+    String? gnuLongName;
+    String? gnuLongLink;
     var eofAcceptable = true;
 
     var format = TarFormat.ustar |
@@ -175,13 +175,13 @@ final class TarReader implements StreamIterator<TarEntry> {
 
         final readName = realName.readString(0, realName.length);
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
-          if (_strict && gnuLongName.isNotEmpty) {
+          if (_strict && gnuLongName != null) {
             throw TarException.header('Duplicate gnu long name header');
           }
 
           gnuLongName = readName;
         } else {
-          if (_strict && gnuLongLink.isNotEmpty) {
+          if (_strict && gnuLongLink != null) {
             throw TarException.header('Duplicate gnu long link header');
           }
 
@@ -194,8 +194,8 @@ final class TarReader implements StreamIterator<TarEntry> {
         // The old GNU sparse format is handled here since it is technically
         // just a regular file with additional attributes.
 
-        if (gnuLongName.isNotEmpty) nextHeader.name = gnuLongName;
-        if (gnuLongLink.isNotEmpty) nextHeader.linkName = gnuLongLink;
+        if (gnuLongName != null) nextHeader.name = gnuLongName;
+        if (gnuLongLink != null) nextHeader.linkName = gnuLongLink;
 
         if (nextHeader.internalTypeFlag == TypeFlag.regA) {
           /// Legacy archives use trailing slash for directories
