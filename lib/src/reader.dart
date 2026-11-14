@@ -474,6 +474,7 @@ final class TarReader implements StreamIterator<TarEntry> {
     var isVersion1 = false;
     final major = _paxHeaders[paxGNUSparseMajor];
     final minor = _paxHeaders[paxGNUSparseMinor];
+    final sparseName = _paxHeaders[paxGNUSparseName] ?? '';
 
     final sparseMapHeader = _paxHeaders[paxGNUSparseMap];
     if (major == '0' && (minor == '0' || minor == '1') ||
@@ -484,12 +485,17 @@ final class TarReader implements StreamIterator<TarEntry> {
       isVersion1 = true;
     } else {
       // Unknown version that we don't support
+      if (_strict && sparseName.isNotEmpty) {
+        // https://stoppels.ch/tar/N41.html
+        throw TarException.header(
+            'Illegal GNU.sparse.name in non-sparse file.');
+      }
       return null;
     }
 
     header.format |= TarFormat.pax;
 
-    /// Update [header] from GNU sparse PAX headers.
+    // Update [header] from GNU sparse PAX headers.
     final possibleName = _paxHeaders[paxGNUSparseName] ?? '';
     if (possibleName.isNotEmpty) {
       header.name = possibleName;

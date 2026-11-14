@@ -68,7 +68,7 @@ const _knownFailures = {
   // Pax size
   'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
   // Duplicate or empty pax keys
-  'N34', 'N40', 'N41',
+  'N40',
   // Header fields
   'N10', 'N11', 'N39', 'N48',
   // GNU pax sparse 1.0, which is ambiguous to readers unaware of it
