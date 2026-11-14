@@ -124,6 +124,24 @@ void main() {
     await process.stdin.close();
   }, testOn: '!windows');
 
+  group('writes ustar magic and version', () {
+    for (final format in tar.OutputFormat.values) {
+      test(format.toString(), () async {
+        // Use a long name so that an extended pax header or a GNU long name
+        // entry is written before the actual entry.
+        final name = '${'very' * 30} long name.txt';
+        final bytes =
+            tar.tarConverterWith(format: format).convert(tar.TarEntry.data(
+                  tar.TarHeader(name: name, mode: int.parse('644', radix: 8)),
+                  utf8.encode('content'),
+                ));
+
+        final decoded = const AsciiDecoder(allowInvalid: true).convert(bytes);
+        expect(decoded, contains('ustar\x0000'));
+      });
+    }
+  });
+
   test('writes huge files', () async {
     final oneMb = Uint8List(oneMbSize);
     const count = tenGbSize ~/ oneMbSize;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:async/async.dart';
+import 'package:charcode/ascii.dart';
 import 'package:tar/src/reader.dart';
 import 'package:tar/src/utils.dart';
 import 'package:tar/tar.dart';
@@ -23,6 +24,34 @@ void main() {
   test('(new) GNU Tar format', () => _testWith('reference/gnu.tar'));
   test('ustar', () => _testWith('reference/ustar.tar'));
   test('v7', () => _testWith('reference/v7.tar', ignoreLongFileName: true));
+
+  test('reads ustar headers with broken version', () async {
+    // POSIX requires the version "00", but before version 2.0.4 this package
+    // wrote "0\0" (https://github.com/simolus3/tar/issues/61). Many archives,
+    // including those created by `dart pub`, have that version, so both must
+    // still be readable.
+    final bytes = await openRead('reference/neats_test/ustar.tar').readFully();
+    for (final headerOffset in [0, 1024]) {
+      final header =
+          Uint8List.sublistView(bytes, headerOffset, headerOffset + 512);
+      // The expected version from a well-formed archive.
+      expect(header[263], $0);
+      expect(header[264], $0);
+      header[264] = 0;
+
+      // Patch the checksum to match the changed header.
+      final checksum = header.computeUnsignedHeaderChecksum();
+      header.setAll(148,
+          ascii.encode('${checksum.toRadixString(8).padLeft(6, '0')}\x00 '));
+    }
+
+    final reader = TarReader(Stream.value(bytes));
+    expect(await reader.moveNext(), isTrue);
+    expect(reader.current.header.name, 'small.txt');
+    expect(await reader.moveNext(), isTrue);
+    expect(reader.current.header.name, 'small2.txt');
+    expect(await reader.moveNext(), isFalse);
+  });
 
   test('can skip tar files', () async {
     final input = openRead('reference/posix.tar');

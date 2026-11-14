@@ -370,7 +370,7 @@ final class _SynchronousTarSink implements Sink<SynchronousTarEntry> {
       ..[156] = typeflagToByte(header.typeFlag)
       ..setAll(157, linkBytes)
       ..setAll(257, magicUstar)
-      ..setUint(0, 263, 2) // version
+      ..setAll(versionOffset, versionUstar)
       ..setAll(265, unameBytes)
       ..setAll(297, gnameBytes)
       // To calculate the checksum, we first fill the checksum range with spaces
