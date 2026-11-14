@@ -1055,7 +1055,7 @@ void main() {
         ('16 longkeyname=hahaha\n', '', '', false),
         ('3 somelongkey=\n', '', '', false),
         ('50 tooshort=\n', '', '', false),
-        ('5 k=\n', 'k', '', true),
+        ('5 k=\n', 'k', null, true),
         ('4 =\n', '', '', false),
         ('4 =', '', '', false),
       ];

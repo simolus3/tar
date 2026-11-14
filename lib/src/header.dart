@@ -268,7 +268,7 @@ class HeaderImpl extends TarHeader {
         super._();
 
   factory HeaderImpl.parseBlock(Uint8List headerBlock,
-      {Map<String, String> paxHeaders = const {}, required bool strict}) {
+      {Map<String, String?> paxHeaders = const {}, required bool strict}) {
     assert(headerBlock.length == 512);
 
     final format = _getFormat(headerBlock);
@@ -337,10 +337,9 @@ class HeaderImpl extends TarHeader {
     return header.._applyPaxHeaders(paxHeaders);
   }
 
-  void _applyPaxHeaders(Map<String, String> headers) {
+  void _applyPaxHeaders(Map<String, String?> headers) {
     for (final entry in headers.entries) {
-      // Empty PAX keys are defined to delete header fields.
-      final value = entry.value.isEmpty ? null : entry.value;
+      final value = entry.value;
 
       String requireValue() {
         if (value == null) {
@@ -376,7 +375,7 @@ class HeaderImpl extends TarHeader {
           modified = parsePaxTime(requireValue());
           break;
         case paxCtime:
-          changed = value != null ? parsePaxTime(entry.value) : null;
+          changed = value != null ? parsePaxTime(value) : null;
           break;
         case paxSize:
           size = parseInt(requireValue());
@@ -416,7 +415,7 @@ MaybeTarFormat _getFormat(Uint8List rawHeader) {
   return TarFormat.v7;
 }
 
-extension _ReadPaxHeaders on Map<String, String> {
+extension _ReadPaxHeaders on Map<String, String?> {
   int? get size {
     final sizeStr = this[paxSize];
     return sizeStr == null ? null : int.tryParse(sizeStr);

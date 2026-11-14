@@ -474,7 +474,7 @@ final class TarReader implements StreamIterator<TarEntry> {
     var isVersion1 = false;
     final major = _paxHeaders[paxGNUSparseMajor];
     final minor = _paxHeaders[paxGNUSparseMinor];
-    final sparseName = _paxHeaders[paxGNUSparseName] ?? '';
+    final sparseName = _paxHeaders[paxGNUSparseName];
 
     final sparseMapHeader = _paxHeaders[paxGNUSparseMap];
     if (major == '0' && (minor == '0' || minor == '1') ||
@@ -485,7 +485,7 @@ final class TarReader implements StreamIterator<TarEntry> {
       isVersion1 = true;
     } else {
       // Unknown version that we don't support
-      if (_strict && sparseName.isNotEmpty) {
+      if (_strict && sparseName != null) {
         // https://stoppels.ch/tar/N41.html
         throw TarException.header(
             'Illegal GNU.sparse.name in non-sparse file.');
@@ -496,9 +496,8 @@ final class TarReader implements StreamIterator<TarEntry> {
     header.format |= TarFormat.pax;
 
     // Update [header] from GNU sparse PAX headers.
-    final possibleName = _paxHeaders[paxGNUSparseName] ?? '';
-    if (possibleName.isNotEmpty) {
-      header.name = possibleName;
+    if (sparseName != null) {
+      header.name = sparseName;
     }
 
     final possibleSize =
@@ -700,22 +699,22 @@ final class TarReader implements StreamIterator<TarEntry> {
 }
 
 @internal
-final class PaxHeaders extends UnmodifiableMapBase<String, String> {
-  final Map<String, String> _globalHeaders = {};
-  Map<String, String> _localHeaders = {};
+final class PaxHeaders extends UnmodifiableMapBase<String, String?> {
+  final Map<String, String?> _globalHeaders = {};
+  Map<String, String?> _localHeaders = {};
 
   /// Applies new global PAX-headers from the map.
   ///
   /// The [headers] will replace global headers with the same key, but leave
   /// others intact.
-  void newGlobals(Map<String, String> headers) {
+  void newGlobals(Map<String, String?> headers) {
     _globalHeaders.addAll(headers);
   }
 
   /// Applies new local PAX-headers from the map.
   ///
   /// This replaces all currently active local headers.
-  void newLocals(Map<String, String> headers, {bool strict = false}) {
+  void newLocals(Map<String, String?> headers, {bool strict = false}) {
     if (_localHeaders.isNotEmpty && strict) {
       throw TarException.header('Two local pax headers for the same entry');
     }
@@ -733,7 +732,11 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
 
   @override
   String? operator [](Object? key) {
-    return _localHeaders[key] ?? _globalHeaders[key];
+    if (_localHeaders.containsKey(key)) {
+      return _localHeaders[key];
+    }
+
+    return _globalHeaders[key];
   }
 
   @override
@@ -753,7 +756,7 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
   void readPaxHeaders(List<int> data, bool isGlobal,
       {bool ignoreUnknown = true, bool strict = false}) {
     var offset = 0;
-    final map = <String, String>{};
+    final map = <String, String?>{};
     final sparseMap = <String>[];
 
     Never error() => throw TarException.header('Invalid PAX record');
@@ -840,7 +843,10 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
         sparseMap.add(value);
       } else if (!ignoreUnknown || isKnownHeader) {
         final allowMalformed = !strict || !isKnownHeader;
-        final value = decodeString(data, offset, endOfValue, allowMalformed);
+        // Empty keys delete prior values
+        final value = offset == endOfValue
+            ? null
+            : decodeString(data, offset, endOfValue, allowMalformed);
 
         if (!_isValidPaxRecord(key, value)) {
           error();
@@ -888,7 +894,9 @@ final class PaxHeaders extends UnmodifiableMapBase<String, String> {
   /// This is adopted from the Golang tar reader (`validPAXRecord`), which says
   /// that "Keys and values should be UTF-8, but the number of bad writers out
   /// there forces us to be a more liberal."
-  static bool _isValidPaxRecord(String key, String value) {
+  static bool _isValidPaxRecord(String key, String? value) {
+    if (value == null) return true;
+
     // These aren't documented in any standard, but Golangs's tar has them and
     // got away with it.
     switch (key) {
