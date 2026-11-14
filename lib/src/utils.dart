@@ -177,7 +177,27 @@ bool isNotAscii(int i) => i > 128;
 
 /// Like [int.parse], but throwing a [TarException] instead of the more-general
 /// [FormatException] when it fails.
-int parseInt(String source) {
+int parsePaxInt(String source, bool strict) {
+  if (strict) {
+    // int.parse allows leading/trailing space and a 0x prefix, pax doesn't.
+    // Additionally, we want to forbid leading zeroes as different parsers treat
+    // them in different ways (https://stoppels.ch/tar/F26.html).
+    var hadNonZero = false;
+    for (final code in source.codeUnits) {
+      if (code < $0 || code > $9) {
+        throw TarException.header('Invalid pax number');
+      }
+
+      if (code == $0) {
+        if (!hadNonZero) {
+          throw TarException.header('Invalid leading zero in pax number');
+        }
+      } else {
+        hadNonZero = true;
+      }
+    }
+  }
+
   return int.tryParse(source, radix: 10) ??
       (throw TarException('Not an int: $source'));
 }

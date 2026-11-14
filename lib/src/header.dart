@@ -273,7 +273,8 @@ class HeaderImpl extends TarHeader {
     assert(headerBlock.length == 512);
 
     final format = _getFormat(headerBlock, strict);
-    final size = paxHeaders.size ?? headerBlock.readOctal(124, 12, strict);
+    final size =
+        paxHeaders.readSize(strict) ?? headerBlock.readOctal(124, 12, strict);
 
     // Start by reading data available in every format.
     final header = HeaderImpl.internal(
@@ -339,10 +340,10 @@ class HeaderImpl extends TarHeader {
       }
     }
 
-    return header.._applyPaxHeaders(paxHeaders);
+    return header.._applyPaxHeaders(paxHeaders, strict);
   }
 
-  void _applyPaxHeaders(Map<String, String?> headers) {
+  void _applyPaxHeaders(Map<String, String?> headers, bool strict) {
     for (final entry in headers.entries) {
       final value = entry.value;
 
@@ -368,10 +369,10 @@ class HeaderImpl extends TarHeader {
           groupName = value;
           break;
         case paxUid:
-          userId = value != null ? parseInt(value) : 0;
+          userId = value != null ? parsePaxInt(value, strict) : 0;
           break;
         case paxGid:
-          groupId = value != null ? parseInt(value) : 0;
+          groupId = value != null ? parsePaxInt(value, strict) : 0;
           break;
         case paxAtime:
           accessed = value != null ? parsePaxTime(value) : null;
@@ -383,7 +384,7 @@ class HeaderImpl extends TarHeader {
           changed = value != null ? parsePaxTime(value) : null;
           break;
         case paxSize:
-          size = parseInt(requireValue());
+          size = parsePaxInt(requireValue(), strict);
           break;
         default:
           break;
@@ -438,8 +439,8 @@ MaybeTarFormat _getFormat(Uint8List rawHeader, bool strict) {
 }
 
 extension _ReadPaxHeaders on Map<String, String?> {
-  int? get size {
+  int? readSize(bool strict) {
     final sizeStr = this[paxSize];
-    return sizeStr == null ? null : int.tryParse(sizeStr);
+    return sizeStr == null ? null : parsePaxInt(sizeStr, strict);
   }
 }
