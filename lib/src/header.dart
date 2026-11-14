@@ -339,40 +339,47 @@ class HeaderImpl extends TarHeader {
 
   void _applyPaxHeaders(Map<String, String> headers) {
     for (final entry in headers.entries) {
-      if (entry.value == '') {
-        continue; // Keep the original USTAR value
+      // Empty PAX keys are defined to delete header fields.
+      final value = entry.value.isEmpty ? null : entry.value;
+
+      String requireValue() {
+        if (value == null) {
+          throw TarException.header('Invalid null PAX key ${entry.key}');
+        }
+
+        return value;
       }
 
       switch (entry.key) {
         case paxPath:
-          name = entry.value;
+          name = requireValue();
           break;
         case paxLinkpath:
-          linkName = entry.value;
+          linkName = value;
           break;
         case paxUname:
-          userName = entry.value;
+          userName = value;
           break;
         case paxGname:
-          groupName = entry.value;
+          groupName = value;
           break;
         case paxUid:
-          userId = parseInt(entry.value);
+          userId = value != null ? parseInt(value) : 0;
           break;
         case paxGid:
-          groupId = parseInt(entry.value);
+          groupId = value != null ? parseInt(value) : 0;
           break;
         case paxAtime:
-          accessed = parsePaxTime(entry.value);
+          accessed = value != null ? parsePaxTime(value) : null;
           break;
         case paxMtime:
-          modified = parsePaxTime(entry.value);
+          modified = parsePaxTime(requireValue());
           break;
         case paxCtime:
-          changed = parsePaxTime(entry.value);
+          changed = value != null ? parsePaxTime(entry.value) : null;
           break;
         case paxSize:
-          size = parseInt(entry.value);
+          size = parseInt(requireValue());
           break;
         default:
           break;
