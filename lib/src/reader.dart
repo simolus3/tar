@@ -175,6 +175,15 @@ final class TarReader implements StreamIterator<TarEntry> {
 
         final readName =
             realName.readString(0, realName.length, strict: _strict);
+        if (_strict && size < realName.length && realName[size] != 0) {
+          // https://stoppels.ch/tar/N39.html: These names are supposed to be
+          // nul-terminated. readString covers invalid suffixes after an early
+          // nul, this checks for name contents reaching into the padding of the
+          // tar block.
+          throw TarException.header(
+              'Malformed GNU metadata payload, not nul-terminated.');
+        }
+
         if (nextHeader.typeFlag == TypeFlag.gnuLongName) {
           if (_strict && gnuLongName != null) {
             throw TarException.header('Duplicate gnu long name header');

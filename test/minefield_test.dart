@@ -67,12 +67,10 @@ const _knownFailures = {
   'F03', 'F39', 'F54',
   // Pax size
   'F10', 'F13', 'F19', 'F20', 'F21', 'F23', 'F24', 'F26', 'F44',
-  // Duplicate or empty pax keys
-  'N40',
-  // Header fields
-  'N10', 'N11', 'N39', 'N48',
-  // GNU pax sparse 1.0, which is ambiguous to readers unaware of it
-  'N36',
+  'N40', // global pax header with linkpath
+  'N10', // combined ustar + star
+  'N11', // Timestamp interpreted as a prefix by some tar decoders
+  'N36', // GNU pax sparse 1.0, which is ambiguous to readers unaware of it
 };
 
 Map<String, Object?> _describe(List<TreeEntry>? tree) {

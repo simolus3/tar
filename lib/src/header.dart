@@ -271,7 +271,7 @@ class HeaderImpl extends TarHeader {
       {Map<String, String?> paxHeaders = const {}, required bool strict}) {
     assert(headerBlock.length == 512);
 
-    final format = _getFormat(headerBlock);
+    final format = _getFormat(headerBlock, strict);
     final size = paxHeaders.size ?? headerBlock.readOctal(124, 12);
 
     // Start by reading data available in every format.
@@ -390,7 +390,7 @@ class HeaderImpl extends TarHeader {
 /// Checks that [rawHeader] represents a valid tar header based on the
 /// checksum, and then attempts to guess the specific format based
 /// on magic values. If the checksum fails, then an error is thrown.
-MaybeTarFormat _getFormat(Uint8List rawHeader) {
+MaybeTarFormat _getFormat(Uint8List rawHeader, bool strict) {
   final checksum = rawHeader.readOctal(checksumOffset, checksumLength);
 
   // Modern TAR archives use the unsigned checksum, but we check the signed
@@ -407,9 +407,12 @@ MaybeTarFormat _getFormat(Uint8List rawHeader) {
         : TarFormat.ustar | TarFormat.pax;
   }
 
-  if (rawHeader.matchesHeader(magicGnu) &&
-      rawHeader.matchesHeader(versionGnu, offset: versionOffset)) {
-    return TarFormat.gnu;
+  if (rawHeader.matchesHeader(magicGnu)) {
+    if (rawHeader.matchesHeader(versionGnu, offset: versionOffset)) {
+      return TarFormat.gnu;
+    } else if (strict) {
+      throw TarException.header('Invalid GNU format version');
+    }
   }
 
   return TarFormat.v7;
