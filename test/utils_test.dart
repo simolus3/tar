@@ -131,6 +131,38 @@ void main() {
     });
   });
 
+  group('formatPaxTime', () {
+    const times = {
+      // No microseconds
+      1350244992000000: '1350244992',
+      0: '0',
+      1000000: '1',
+      // Microseconds with trailing zeroes
+      1350244992300000: '1350244992.3',
+      1350244992023960: '1350244992.02396',
+      500000: '0.5',
+      // Microseconds without trailing zeroes
+      1350244992123456: '1350244992.123456',
+      1: '0.000001',
+      1000001: '1.000001',
+    };
+
+    times.forEach((micros, expected) {
+      test('formatPaxTime($micros)', () {
+        // Parse positive
+        final time = microsecondsSinceEpoch(micros);
+        expect(formatPaxTime(time), expected);
+        expect(parsePaxTime(expected), time);
+        // Parse negative
+        final negative = microsecondsSinceEpoch(-micros);
+        if (micros != 0) {
+          expect(formatPaxTime(negative), '-$expected');
+        }
+        expect(parsePaxTime('-$expected'), negative);
+      });
+    });
+  });
+
   group('parsePaxTime', () {
     const validTimes = {
       '1350244992.023960108': 1350244992023960,

@@ -142,6 +142,34 @@ void main() {
     }
   });
 
+  test('writes access and change times', () async {
+    final accessed = DateTime.utc(2020, 12, 30, 12, 34, 56, 789);
+    final changed = DateTime.utc(1960);
+    final bytes = tar.tarConverter.convert(tar.TarEntry.data(
+      tar.TarHeader(
+          name: 'file.txt', mode: 420, accessed: accessed, changed: changed),
+      [],
+    ));
+
+    final reader = tar.TarReader(Stream.value(bytes));
+    expect(await reader.moveNext(), isTrue);
+    expect(reader.current.header.accessed, accessed);
+    expect(reader.current.header.changed, changed);
+  });
+
+  test('does not write access and change times with OutputFormat.gnu', () {
+    final entry = tar.TarEntry.data(
+      tar.TarHeader(name: 'file.txt', mode: 420, accessed: DateTime.utc(2020)),
+      [],
+    );
+
+    expect(
+        tar
+            .tarConverterWith(format: tar.OutputFormat.gnuLongName)
+            .convert(entry),
+        hasLength(3 * 512));
+  });
+
   test('writes huge files', () async {
     final oneMb = Uint8List(oneMbSize);
     const count = tenGbSize ~/ oneMbSize;

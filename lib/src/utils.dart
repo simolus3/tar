@@ -243,6 +243,25 @@ DateTime parsePaxTime(String paxTimeString) {
   return microsecondsSinceEpoch(microSeconds + seconds * pow(10, 6).toInt());
 }
 
+/// Encodes [time] in the format read by [parsePaxTime]: seconds since the
+/// epoch, followed by a fraction if the time isn't a full second.
+String formatPaxTime(DateTime time) {
+  final micros = time.microsecondsSinceEpoch;
+  final sign = micros < 0 ? '-' : '';
+  final abs = micros.abs();
+  final seconds = abs ~/ 1000000;
+  var fraction = abs % 1000000;
+  if (fraction == 0) return '$sign$seconds';
+
+  // Drop trailing zeroes from the fraction.
+  var digits = 6;
+  while (fraction % 10 == 0) {
+    fraction ~/= 10;
+    digits--;
+  }
+  return '$sign$seconds.${fraction.toString().padLeft(digits, '0')}';
+}
+
 // https://github.com/dart-lang/sdk/blob/b6d773b62e2e5c823f5e8caade4ce7df152e4787/sdk/lib/core/date_time.dart#L398-L400
 const _maxSecondsSinceEpoch = 8640000000000;
 const _maxMillisecondsSinceEpoch = _maxSecondsSinceEpoch * 1000;

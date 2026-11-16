@@ -1,3 +1,7 @@
+## 2.1.1 (unreleased)
+
+- Write the `accessed` and `changed` times of entries in pax headers.
+
 ## 2.1.0
 
 - Add opt-in `strict` option to harden the reader against ambiguous tar files.
