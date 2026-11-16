@@ -134,7 +134,8 @@ Converter<SynchronousTarEntry, List<int>> tarConverterWith(
 ///
 /// This option can be passed to writer in [tarWritingSink] or[tarWriterWith].
 enum OutputFormat {
-  /// Generates an extended PAX headers to encode files with a long name.
+  /// Generates extended PAX headers to encode files with a long name, and
+  /// the [TarHeader.accessed] and [TarHeader.changed] times.
   ///
   /// This is the default option.
   pax,
@@ -149,7 +150,7 @@ enum OutputFormat {
   /// Tar entries can't be written if
   ///  * their [TarHeader.userName] is longer than 31 bytes in utf8,
   ///  * their [TarHeader.groupName] is longer than 31 bytes in utf8, or,
-  ///  * their [TarEntry.contents] are larger than 8589934591 byte (around
+  ///  * their [TarEntry.contents] are larger than 8589934591 bytes (around
   ///    8 GiB).
   ///
   /// Attempting to encode such file will throw an [UnsupportedError].
@@ -350,6 +351,18 @@ final class _SynchronousTarSink implements Sink<SynchronousTarEntry> {
 
     if (size > maxIntFor12CharOct) {
       paxHeader[paxSize] = ascii.encode(size.toString());
+    }
+
+    // There are no fields for these times in ustar headers.
+    if (_format == OutputFormat.pax) {
+      final accessed = header.accessed;
+      final changed = header.changed;
+      if (accessed != null) {
+        paxHeader[paxAtime] = ascii.encode(formatPaxTime(accessed));
+      }
+      if (changed != null) {
+        paxHeader[paxCtime] = ascii.encode(formatPaxTime(changed));
+      }
     }
 
     if (paxHeader.isNotEmpty) {
